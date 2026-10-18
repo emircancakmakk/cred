@@ -52,7 +52,7 @@ func (a *App) runTUI(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	label, err := tui.Run(projectsOf(loaded), start, copier, file, a.outWriter())
+	label, err := tui.Run(projectsOf(loaded), start, copier, file, a.outWriter(), a.activeLabel())
 	if err != nil {
 		return err
 	}

@@ -74,10 +74,13 @@ var (
 	keyStop   = key.NewBinding(key.WithKeys("ctrl+c"))
 )
 
-func Run(projects []Project, start string, copier Copier, in io.Reader, out io.Writer) (string, error) {
+func Run(projects []Project, start string, copier Copier, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
 	m, err := newModel(projects, start, copier)
 	if err != nil {
 		return "", err
+	}
+	if len(vaultLabel) > 0 {
+		m.vaultLabel = vaultLabel[0]
 	}
 	opts := []tea.ProgramOption{tea.WithAltScreen()}
 	if in != nil {
@@ -98,6 +101,7 @@ func Run(projects []Project, start string, copier Copier, in io.Reader, out io.W
 }
 
 type model struct {
+	vaultLabel  string
 	projects    []Project
 	projectList list.Model
 	serviceList list.Model
@@ -408,7 +412,7 @@ func (m model) header() string {
 	brand := lipgloss.NewStyle().Bold(true).Foreground(accent)
 	label := lipgloss.NewStyle().Bold(true).Foreground(ink)
 	gap := lipgloss.NewStyle().Foreground(muted)
-	return brand.Render("cred") + gap.Render("  ") + label.Render(m.crumb())
+	return brand.Render("cred") + gap.Render("  "+m.vaultLabel+"  ") + label.Render(m.crumb())
 }
 
 func (m model) crumb() string {

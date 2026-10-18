@@ -34,7 +34,7 @@ func DefaultPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("locate config directory: %w", err)
 	}
-	return filepath.Join(dir, configDir, vaultFile), nil
+	return filepath.Join(dir, configDir, "vaults", "local", vaultFile), nil
 }
 
 func Load(path string, password []byte) (*Vault, error) {
@@ -46,13 +46,17 @@ func Load(path string, password []byte) (*Vault, error) {
 		return nil, fmt.Errorf("read vault: %w", err)
 	}
 
+	defer crypto.Wipe(data)
+	return LoadEncrypted(data, password)
+}
+
+// LoadEncrypted opens an encrypted snapshot without modifying the caller's data.
+func LoadEncrypted(data, password []byte) (*Vault, error) {
 	plain, err := crypto.Decrypt(data, password)
-	crypto.Wipe(data)
 	if err != nil {
 		return nil, mapDecryptError(err)
 	}
 	defer crypto.Wipe(plain)
-
 	return parsePlaintext(plain)
 }
 

@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/emircancakmakk/cred/internal/crypto"
+	"github.com/emircancakmakk/cred/internal/profiles"
 	"github.com/emircancakmakk/cred/internal/vault"
 )
 
@@ -97,8 +98,8 @@ func TestRenderVault(t *testing.T) {
 }
 
 func TestInitAndRefuseOverwrite(t *testing.T) {
-	path := setVaultEnv(t)
-	stderr, err := runOK(t, []string{"init"}, []string{masterPassword, masterPassword}, nil)
+	path := setLocalInitEnv(t)
+	stderr, err := runOK(t, []string{"init", "local"}, []string{masterPassword, masterPassword}, nil)
 	if !strings.Contains(stderr, "created "+path) {
 		t.Fatalf("stderr %q", stderr)
 	}
@@ -111,8 +112,8 @@ func TestInitAndRefuseOverwrite(t *testing.T) {
 		t.Fatalf("vault = %+v", loaded)
 	}
 
-	_, _, err = runCmd(t, []string{"init"}, nil, nil)
-	if err == nil || !strings.Contains(err.Error(), "vault already exists") {
+	_, _, err = runCmd(t, []string{"init", "local"}, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "profile already exists") {
 		t.Fatalf("second init: %v", err)
 	}
 	if _, statErr := os.Stat(path); statErr != nil {
@@ -133,8 +134,8 @@ func TestInitPasswordRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path := setVaultEnv(t)
-			_, _, err := runCmd(t, []string{"init"}, tt.passwords, nil)
+			path := setLocalInitEnv(t)
+			_, _, err := runCmd(t, []string{"init", "local"}, tt.passwords, nil)
 			if tt.want == errMismatch {
 				if err == nil || err.Error() != "passwords do not match" {
 					t.Fatalf("got %v", err)
@@ -155,8 +156,8 @@ func TestInitAcceptsTwelveRunes(t *testing.T) {
 	if utf8.RuneCountInString(password) != 12 || len(password) <= 12 {
 		t.Fatal("fixture must be 12 runes and more than 12 bytes")
 	}
-	path := setVaultEnv(t)
-	if _, err := runOK(t, []string{"init"}, []string{password, password}, nil); err != nil {
+	path := setLocalInitEnv(t)
+	if _, err := runOK(t, []string{"init", "local"}, []string{password, password}, nil); err != nil {
 		t.Fatal(err)
 	}
 	stdout, err := runOK(t, []string{"ls"}, []string{password}, nil)
@@ -738,9 +739,23 @@ func runOK(t *testing.T, args, passwords, lines []string) (string, error) {
 
 func initVault(t *testing.T) {
 	t.Helper()
-	if _, err := runOK(t, []string{"init"}, []string{masterPassword, masterPassword}, nil); err != nil {
+	path, err := vault.Path()
+	if err != nil {
 		t.Fatal(err)
 	}
+	if err = vault.Save(path, []byte(masterPassword), vault.New(), fastOptions()); err != nil {
+		t.Fatal(err)
+	}
+}
+func setLocalInitEnv(t *testing.T) string {
+	t.Helper()
+	isolateProfiles(t)
+	path, e := profiles.NamedPath("local")
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Setenv("CRED_VAULT", path)
+	return path
 }
 
 func addPassword(t *testing.T, path string) {

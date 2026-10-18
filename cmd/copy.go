@@ -16,6 +16,9 @@ var errCopyUsage = errors.New("usage: cred <project> <service> <field> [--show]"
 
 var knownCommands = map[string]struct{}{
 	"init":       {},
+	"status":     {},
+	"connect":    {},
+	"vault":      {},
 	"add":        {},
 	"import":     {},
 	"set":        {},
@@ -84,7 +87,7 @@ func (a *App) runCopy(cmd *cobra.Command, args []string) error {
 }
 
 func rewriteArgs(args []string) ([]string, error) {
-	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "--version" || args[0] == "-v" {
 		return args, nil
 	}
 	if _, ok := knownCommands[args[0]]; ok {

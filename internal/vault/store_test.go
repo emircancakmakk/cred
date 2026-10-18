@@ -330,7 +330,7 @@ func TestDefaultPathDoesNotCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := filepath.Join(config, "cred", "vault.age")
+	want := filepath.Join(config, "cred", "vaults", "local", "vault.age")
 	if got != want {
 		t.Fatalf("got %s, want %s", got, want)
 	}
@@ -395,5 +395,41 @@ func TestMarshalUsesIndent(t *testing.T) {
 	}
 	if !bytes.Contains(buf, []byte("\n")) {
 		t.Fatal("expected indented JSON")
+	}
+}
+
+func TestLoadEncryptedPreservesCiphertext(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "vault.age")
+	password := []byte("correct-master-password")
+	v := New()
+	if e := v.Add("p", "s", "f", Field{Value: "secret", Secret: true}); e != nil {
+		t.Fatal(e)
+	}
+	if e := Save(path, password, v, fastOptions()); e != nil {
+		t.Fatal(e)
+	}
+	sealed, e := os.ReadFile(path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	before := append([]byte(nil), sealed...)
+	opened, e := LoadEncrypted(sealed, password)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if field, e := opened.GetField("p", "s", "f"); e != nil || field.Value != "secret" {
+		t.Fatal("wrong decoded vault")
+	}
+	if !bytes.Equal(sealed, before) {
+		t.Fatal("ciphertext changed")
+	}
+	if _, e = LoadEncrypted(sealed, []byte("wrong")); !errors.Is(e, ErrWrongPassword) {
+		t.Fatal(e)
+	}
+	if !bytes.Equal(sealed, before) {
+		t.Fatal("failed load changed ciphertext")
+	}
+	if _, e = LoadEncrypted([]byte("corrupt"), password); !errors.Is(e, ErrCorruptVault) {
+		t.Fatal(e)
 	}
 }

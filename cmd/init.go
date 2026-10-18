@@ -1,64 +1,104 @@
 package cmd
 
 import (
-	"crypto/subtle"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/emircancakmakk/cred/internal/profiles"
 	"github.com/spf13/cobra"
-
-	"github.com/emircancakmakk/cred/internal/crypto"
-	"github.com/emircancakmakk/cred/internal/vault"
 )
 
 func (a *App) initCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "init",
-		Short: "Create an empty vault",
-		Long: `Create an empty vault encrypted with a new master password.
+	return &cobra.Command{Use: "init [name]", Short: "Set up a local or shared vault", Long: `Open the interactive setup menu to create a local vault, connect to an existing
+team vault, or create a shared vault in an empty Git repository you provide.
 
-The password is read twice, hidden, and must be at least 12 characters.
-An existing vault file is left unchanged.`,
-		Args: cobra.NoArgs,
-		RunE: a.runInit,
-	}
+cred init <name> creates a local vault directly. New passwords are read twice,
+hidden, and must be at least 12 characters. Existing profiles are never replaced.
+The interactive setup creates named profiles even when CRED_VAULT is set.`, Args: cobra.MaximumNArgs(1), RunE: a.runInit}
 }
-
-func (a *App) runInit(_ *cobra.Command, _ []string) error {
-	path, err := vault.Path()
-	if err != nil {
-		return err
+func (a *App) runInit(_ *cobra.Command, args []string) error {
+	if len(args) == 0 && a.vaultName == "" {
+		return a.runSetup()
 	}
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("vault already exists: %s", path)
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("stat vault: %w", err)
+	name := a.vaultName
+	if len(args) == 1 {
+		name = args[0]
 	}
-
-	prompter, err := a.prompter()
-	if err != nil {
-		return err
+	p, e := a.createLocal(name)
+	if e != nil {
+		return e
 	}
-	first, err := prompter.ReadPassword(promptPassword)
-	if err != nil {
-		return err
+	fmt.Fprintf(a.errWriter(), "created %s\n", p.Path)
+	return nil
+}
+func (a *App) runSetup() error {
+	choice, e := a.chooseSetup()
+	if errors.Is(e, errSetupCancelled) {
+		fmt.Fprintln(a.errWriter(), "cancelled")
+		return nil
 	}
-	defer crypto.Wipe(first)
-	if err := vault.ValidateMasterPassword(first); err != nil {
-		return err
+	if e != nil {
+		return e
 	}
-	second, err := prompter.ReadPassword(promptRepeat)
-	if err != nil {
-		return err
+	p, e := a.prompter()
+	if e != nil {
+		return e
 	}
-	defer crypto.Wipe(second)
-	if subtle.ConstantTimeCompare(first, second) != 1 {
-		return errors.New("passwords do not match")
+	prompt := "Profile name: "
+	if choice == setupLocal {
+		prompt = "Profile name [local]: "
 	}
-	if err := a.save(path, first, vault.New()); err != nil {
-		return err
+	name, e := p.ReadLine(prompt)
+	if e != nil {
+		return e
 	}
-	fmt.Fprintf(a.errWriter(), "created %s\n", path)
+	name = strings.TrimSpace(name)
+	if name == "" && choice == setupLocal {
+		name = "local"
+	}
+	if e = profiles.ValidateName(name); e != nil {
+		return e
+	}
+	var profile profiles.Profile
+	if choice == setupLocal {
+		profile, e = a.createLocal(name)
+	} else {
+		repo, err := p.ReadLine("Git repository URL: ")
+		if err != nil {
+			return err
+		}
+		repo = strings.TrimSpace(repo)
+		if repo == "" {
+			return errors.New("a Git repository URL is required")
+		}
+		if choice == setupConnect {
+			profile, e = a.connectProfile(name, repo, "")
+		} else {
+			profile, e = a.createShared(name, repo)
+		}
+	}
+	if e != nil {
+		return e
+	}
+	path := profile.Path
+	if profile.Type == "git" {
+		path = profile.RepoDir() + "/vault.age"
+	}
+	fmt.Fprintf(a.errWriter(), "Ready: %s (%s)\nVault: %s\nTry: cred --vault %s\n", name, profile.Type, path, name)
+	answer, e := p.ReadLine("Use this vault by default? [y/N]: ")
+	if e != nil {
+		return fmt.Errorf("vault is ready; default selection was not changed: %w", e)
+	}
+	if parseConfirm(answer) {
+		if e = setDefaultProfile(name); e != nil {
+			return e
+		}
+		fmt.Fprintf(a.errWriter(), "default vault: %s\n", name)
+		if os.Getenv("CRED_VAULT") != "" {
+			fmt.Fprintln(a.errWriter(), "CRED_VAULT is set; unset CRED_VAULT to use this default without --vault.")
+		}
+	}
 	return nil
 }

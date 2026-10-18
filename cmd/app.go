@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/emircancakmakk/cred/internal/clipboard"
 	"github.com/emircancakmakk/cred/internal/crypto"
+	"github.com/emircancakmakk/cred/internal/profiles"
 	"github.com/emircancakmakk/cred/internal/vault"
+	"github.com/emircancakmakk/cred/internal/version"
 )
 
 type Copier interface {
@@ -25,6 +28,15 @@ type App struct {
 	Copier     Copier
 	WorkFactor int
 
+	vaultName        string
+	profile          profiles.Profile
+	sessionPath      string
+	gitSession       *profiles.Git
+	base             *vault.Vault
+	release          func()
+	progressObserver profiles.Observer
+	setupMenu        func() (setupChoice, error)
+
 	RunTUI func(project string) error
 }
 
@@ -36,7 +48,38 @@ func (a *App) Execute(args []string) error {
 	if args == nil {
 		args = []string{}
 	}
-	args, err := rewriteArgs(args)
+	a.vaultName = ""
+	a.sessionPath = ""
+	a.base = nil
+	a.gitSession = nil
+	a.release = nil
+	defer func() {
+		if a.release != nil {
+			a.release()
+		}
+	}()
+	// Extract the global selector before shorthand command rewriting.
+	filtered := []string{}
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--" {
+			filtered = append(filtered, args[i:]...)
+			break
+		}
+		if args[i] == "--vault" {
+			if i+1 >= len(args) {
+				return errors.New("--vault requires a profile")
+			}
+			i++
+			a.vaultName = args[i]
+			continue
+		}
+		if strings.HasPrefix(args[i], "--vault=") {
+			a.vaultName = strings.TrimPrefix(args[i], "--vault=")
+			continue
+		}
+		filtered = append(filtered, args[i])
+	}
+	args, err := rewriteArgs(filtered)
 	if err != nil {
 		return err
 	}
@@ -49,8 +92,9 @@ func (a *App) Execute(args []string) error {
 
 func (a *App) root() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "cred",
-		Short: "Local encrypted credential vault",
+		Use:     "cred",
+		Version: version.Version,
+		Short:   "Local encrypted credential vault",
 		Long: `Local encrypted credential vault.
 
 cred with no arguments opens the project list.
@@ -74,7 +118,9 @@ Matching tries an exact name, then case-insensitive, then a unique prefix.
 			DisableDefaultCmd: true,
 		},
 	}
+	root.PersistentFlags().String("vault", "", "select a vault profile")
 	root.AddCommand(
+		quiet(a.connectCmd()), quiet(a.vaultCmd()), quiet(a.statusCmd()),
 		quiet(a.initCmd()),
 		quiet(a.addCmd()),
 		quiet(a.importCmd()),
@@ -109,16 +155,16 @@ func (a *App) unlock() (*vault.Vault, string, []byte, error) {
 	if err != nil {
 		return nil, "", nil, err
 	}
+	path, err := a.prepare()
+	if err != nil {
+		return nil, "", nil, err
+	}
 	password, err := prompter.ReadPassword(promptPassword)
 	if err != nil {
 		return nil, "", nil, err
 	}
-	path, err := vault.Path()
-	if err != nil {
-		crypto.Wipe(password)
-		return nil, "", nil, err
-	}
-	loaded, err := vault.Load(path, password)
+
+	loaded, err := a.loadVault(path, password)
 	if err != nil {
 		crypto.Wipe(password)
 		if errors.Is(err, vault.ErrVaultNotFound) {
@@ -126,6 +172,7 @@ func (a *App) unlock() (*vault.Vault, string, []byte, error) {
 		}
 		return nil, "", nil, err
 	}
+	a.base = vault.Clone(loaded)
 	return loaded, path, password, nil
 }
 
@@ -137,6 +184,11 @@ func (a *App) copier() (Copier, error) {
 }
 
 func (a *App) save(path string, password []byte, v *vault.Vault) error {
+	if a.gitSession != nil {
+		return a.saveGit(password, v)
+	}
+	stop := a.stage("Encrypting vault")
+	defer stop()
 	return vault.Save(path, password, v, vault.Options{WorkFactor: a.WorkFactor})
 }
 
