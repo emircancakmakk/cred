@@ -10,7 +10,13 @@ passphrase mode (scrypt). There is no network sync, account, or GUI.
 
 ## Install
 
-Go 1.27.2 or newer, as declared in `go.mod`.
+With Homebrew:
+
+```sh
+brew install emircancakmakk/tap/cred
+```
+
+From source, Go 1.27.2 or newer, as declared in `go.mod`.
 
 ```sh
 make build
