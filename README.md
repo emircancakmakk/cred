@@ -1,9 +1,22 @@
-# cred
+<p align="center">
+  <img src="assets/cred-icon.png" alt="" width="96" height="96" />
+</p>
 
-`cred` is a local encrypted credential vault for the terminal. Records are
-stored as project, then service, then field. One example is the project
-`my-project`, with services `vercel` and `digital-ocean`, and fields such as
-`email` and `password`.
+<h1 align="center">cred</h1>
+
+<p align="center">
+  A local encrypted credential vault for the terminal.
+</p>
+
+<p align="center">
+  <a href="https://github.com/emircancakmakk/cred/releases/latest"><img src="https://img.shields.io/github/v/release/emircancakmakk/cred?label=release&color=2eb857" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-000000" alt="macOS and Linux" />
+  <img src="https://img.shields.io/badge/license-MIT-2eb857" alt="MIT license" />
+</p>
+
+Records are stored as project, then service, then field. One example is the
+project `my-project`, with services `vercel` and `digital-ocean`, and fields
+such as `email` and `password`.
 
 The vault is a single file encrypted with [age](https://github.com/FiloSottile/age)
 passphrase mode (scrypt). There is no network sync, account, or GUI.
@@ -80,6 +93,54 @@ field name already exists, nothing from that run is saved. The message names
 
 A new project, service, or field name that differs from an existing one only
 by case is rejected.
+
+### Import fields
+
+```sh
+cred import data.json
+```
+
+The file is JSON in the vault plaintext shape, version 1. The master password
+is prompted once. The vault is written once, and only when at least one field
+is new.
+
+```json
+{
+  "version": 1,
+  "projects": {
+    "my-project": {
+      "services": {
+        "vercel": {
+          "fields": {
+            "email": { "value": "user@example.com", "secret": false },
+            "password": { "value": "secret-value", "secret": true }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+`secret` is required on every field. Omitting it is an error, so a forgotten
+flag cannot store a password as a visible field. `value` may be empty.
+Unknown keys are rejected.
+
+A field that is already stored under that exact name is skipped. A name that
+differs only by case from an existing project, service, or field is skipped
+too. The stored value is left as it is. Other fields in the file are still
+saved. If every field is skipped, or the file contains no fields, the vault
+file is left unchanged.
+
+Skipped fields are listed on stderr as `project/service/field`. Values are
+not printed. `added 1 field` and `added N fields` match `cred add`.
+
+Two names in the file that differ only by case, a bad name, an unknown key,
+or a version other than 1 rejects the file before the password prompt.
+Nothing is saved.
+
+A project or service with no fields does not create an empty record. The
+import file is plaintext and is left on disk.
 
 ### Replace a field
 
@@ -173,8 +234,9 @@ order:
 4. Several matches: an error that lists the candidate names. The selector
    does not open.
 
-`add`, `set`, and `rm` require the stored spelling. A prefix is a different
-name there.
+`add`, `set`, `rm`, and `import` require the stored spelling. A prefix is a
+different name there. `import` skips a name that differs only by case from
+one already stored.
 
 Case comparison uses Unicode case folding (`strings.EqualFold`). `my-project` and
 `MY-PROJECT` match. Turkish `i` / `İ` and `ı` / `I` stay distinct, so `ışık` and
@@ -214,7 +276,7 @@ Prompted names are stored as typed.
 - The default scrypt work factor is age's logN 18. Creating, opening, or
   saving a vault takes about a second.
 - There is no command to change the master password, and no Touch ID,
-  Keychain, sync, import, export, or `cred env` command.
+  Keychain, sync, export, or `cred env` command.
 - The backup is a single previous generation, `vault.age.bak`.
 - The selector's `s` key draws a secret on the alternate screen for 5
   seconds. That screen is separate from the normal scrollback.

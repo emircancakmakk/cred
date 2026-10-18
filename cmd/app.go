@@ -77,6 +77,7 @@ Matching tries an exact name, then case-insensitive, then a unique prefix.
 	root.AddCommand(
 		quiet(a.initCmd()),
 		quiet(a.addCmd()),
+		quiet(a.importCmd()),
 		quiet(a.setCmd()),
 		quiet(a.lsCmd()),
 		quiet(a.rmCmd()),

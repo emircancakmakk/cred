@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "projects": {
+    "my-project": {
+      "services": {
+        "vercel": {
+          "fields": {
+            "email": { "value": "user@example.com", "secret": false },
+            "password": { "value": "secret-value", "secret": true }
+          }
+        },
+        "digital-ocean": {
+          "fields": {
+            "token": { "value": "dop_v1_example", "secret": true }
+          }
+        }
+      }
+    }
+  }
+}

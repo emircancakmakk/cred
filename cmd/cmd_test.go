@@ -408,7 +408,7 @@ func TestHelpAndUnknownCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	help := stdout.String() + stderr.String()
-	for _, name := range []string{"init", "add", "set", "ls", "rm", "--show"} {
+	for _, name := range []string{"init", "add", "import", "set", "ls", "rm", "--show"} {
 		if !strings.Contains(help, name) {
 			t.Fatalf("help missing %s:\n%s", name, help)
 		}

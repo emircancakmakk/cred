@@ -17,6 +17,7 @@ var errCopyUsage = errors.New("usage: cred <project> <service> <field> [--show]"
 var knownCommands = map[string]struct{}{
 	"init":       {},
 	"add":        {},
+	"import":     {},
 	"set":        {},
 	"ls":         {},
 	"rm":         {},
