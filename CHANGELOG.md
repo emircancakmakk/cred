@@ -22,6 +22,24 @@
 
 ### Upgrade notes
 
+```sh
+brew update
+brew upgrade emircancakmakk/tap/cred
+cred --version
+```
+
+To keep using a vault at the previous macOS path:
+
+```sh
+export CRED_VAULT="$HOME/Library/Application Support/cred/vault.age"
+cred
+```
+
+On Linux, point `CRED_VAULT` at the existing `$XDG_CONFIG_HOME/cred/vault.age`
+or `~/.config/cred/vault.age`. Alternatively, copy the old file to the new
+`cred/vaults/local/vault.age` location under the user config directory without
+overwriting an existing vault. No `cred init` is needed to open an existing vault.
+
 - Existing vault encryption and plaintext format remain version 1. Existing passwords still work.
 - Old vault paths are not migrated automatically. Set `CRED_VAULT` to an existing file to continue using it, or copy it to the new local path without replacing another vault. Do not initialize over existing data.
 - Git profiles require Git authentication and author identity to be configured. Remote repositories are created by the user, not cred.
