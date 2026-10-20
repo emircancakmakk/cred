@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.4.0 — 2026-10-21
+
+### Added
+
+- Create, rename, edit and delete projects, services and fields directly in the TUI, with persistent encrypted saves and explicit deletion confirmation.
+- Shared terminal interface components for forms, selections, confirmations, keyboard help and responsive panels.
+- Editable masked master-password entry with Ctrl+R show/hide and up to three unlock attempts.
+- A guided setup flow with Back navigation, review before creation, progress and a result screen with optional default-vault selection.
+
+### Changed
+
+- Setup, unlocking, the browser, CRUD forms, CLI prompts, Git conflict choices and recovery confirmations use a common terminal design and keyboard conventions.
+- Enter advances through form fields; actions run when their button is focused. Tab / Shift+Tab moves between fields and buttons.
+- Human-facing command output uses shared styling on terminals while pipes, files and raw `--show` output retain their plain-text behavior.
+- Narrow terminals support wrapped help, scrolling panels and bounded Unicode input and browser rows.
+
+### Fixed
+
+- Removed repeated master-password headings and descriptions from the unlock and connection retry screens.
+- Excluded `.vibe-wise` workspace files from Git tracking.
+
+### Upgrade notes
+
+- Vault encryption and plaintext format remain unchanged; existing vaults and passwords continue to work.
+- Use Tab or Enter to reach Open/Continue in password forms, then press Enter to submit. Ctrl+R shows or hides the focused sensitive field.
+
 ## v0.3.0 — 2026-10-18
 
 ### Added
