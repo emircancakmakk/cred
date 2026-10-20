@@ -46,7 +46,7 @@ func (a *App) runAdd(_ *cobra.Command, args []string) error {
 	if len(args) == 2 {
 		service = args[1]
 	} else {
-		service, err = prompter.ReadLine(promptService)
+		service, err = askLine(prompter, promptService, "Service", true)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func (a *App) runAdd(_ *cobra.Command, args []string) error {
 
 	added := 0
 	for {
-		name, err := prompter.ReadLine(promptField)
+		name, err := askLine(prompter, promptField, "Field name (empty to finish)", false)
 		if err != nil {
 			return err
 		}
@@ -74,31 +74,27 @@ func (a *App) runAdd(_ *cobra.Command, args []string) error {
 		added++
 	}
 	if added == 0 {
-		fmt.Fprintln(a.errWriter(), "no fields added")
+		fmt.Fprintln(a.humanErr(), "no fields added")
 		return nil
 	}
 	if err := a.save(path, password, loaded); err != nil {
 		return err
 	}
 	if added == 1 {
-		fmt.Fprintln(a.errWriter(), "added 1 field")
+		fmt.Fprintln(a.humanErr(), "added 1 field")
 		return nil
 	}
-	fmt.Fprintf(a.errWriter(), "added %d fields\n", added)
+	fmt.Fprintf(a.humanErr(), "added %d fields\n", added)
 	return nil
 }
 
 func readField(prompter Prompter, current *bool) (vault.Field, error) {
-	value, err := prompter.ReadPassword(promptValue)
+	value, err := askValue(prompter)
 	if err != nil {
 		return vault.Field{}, err
 	}
 	defer crypto.Wipe(value)
-	answer, err := prompter.ReadLine(secretPrompt(current))
-	if err != nil {
-		return vault.Field{}, err
-	}
-	secret, err := parseSecret(answer, current)
+	secret, err := askSecret(prompter, current)
 	if err != nil {
 		return vault.Field{}, err
 	}

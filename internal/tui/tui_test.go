@@ -19,7 +19,7 @@ func TestProjectListShowsCounts(t *testing.T) {
 	if strings.Contains(view, sampleSecret) || strings.Contains(view, "DO-SECRET") {
 		t.Fatalf("project list leaked a secret:\n%s", view)
 	}
-	for _, text := range []string{"filiz", "2 services", "other", "1 service", helpLine} {
+	for _, text := range []string{"filiz", "2 services", "other", "1 service", "enter select", "q quit"} {
 		if !strings.Contains(view, text) {
 			t.Fatalf("project list missing %q:\n%s", text, view)
 		}

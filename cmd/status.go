@@ -44,7 +44,7 @@ func (a *App) runStatus(cmd *cobra.Command, _ []string) error {
 	} else if os.Getenv("CRED_VAULT") != "" {
 		source = "CRED_VAULT"
 	}
-	out := a.outWriter()
+	out := a.humanOut()
 	path := p.Path
 	if p.Type == "git" {
 		path = filepath.Join(p.RepoDir(), "vault.age")

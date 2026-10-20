@@ -51,7 +51,7 @@ func (a *App) prepare() (string, error) {
 		a.sessionPath = p.Path
 	}
 	if a.vaultName != "" || p.Type == "git" {
-		fmt.Fprintf(a.errWriter(), "vault: %s · %s\n", name, p.Type)
+		fmt.Fprintf(a.humanErr(), "vault: %s · %s\n", name, p.Type)
 	}
 	return a.sessionPath, nil
 }
@@ -61,7 +61,7 @@ func (a *App) resolveConflict(path string) (bool, error) {
 		return false, e
 	}
 	for {
-		answer, e := p.ReadLine(fmt.Sprintf("Conflict at %s: [1] team [2] mine [3] cancel (default): ", path))
+		answer, e := askConflict(p, path)
 		if e != nil {
 			return false, e
 		}
@@ -123,11 +123,15 @@ func (a *App) saveGit(password []byte, v *vault.Vault) error {
 }
 func (a *App) connectCmd() *cobra.Command {
 	command := &cobra.Command{Use: "connect <name> <repository>", Short: "Connect an existing Git vault", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
+		if a.Prompter == nil {
+			from, _ := cmd.Flags().GetString("from")
+			return a.runSetupWizard(setupRequest{Choice: setupConnect, Fixed: true, Name: args[0], Repo: args[1], From: from})
+		}
 		from, _ := cmd.Flags().GetString("from")
 		if _, e := a.connectProfile(args[0], args[1], from); e != nil {
 			return e
 		}
-		fmt.Fprintf(a.errWriter(), "connected %s; select with cred vault use %s\n", args[0], args[0])
+		fmt.Fprintf(a.humanErr(), "connected %s; select with cred vault use %s\n", args[0], args[0])
 		return nil
 	}}
 	command.Flags().String("from", "", "publish a local vault into an empty repository")
@@ -180,7 +184,7 @@ func (a *App) vaultCmd() *cobra.Command {
 				if e = a.saveGit(password, desired); e != nil {
 					return e
 				}
-				fmt.Fprintln(a.errWriter(), "shared vault setup completed")
+				fmt.Fprintln(a.humanErr(), "shared vault setup completed")
 				return nil
 			}
 		}
@@ -199,7 +203,7 @@ func (a *App) vaultCmd() *cobra.Command {
 		if e = a.saveGit(password, merged); e != nil {
 			return e
 		}
-		fmt.Fprintln(a.errWriter(), "change shared")
+		fmt.Fprintln(a.humanErr(), "change shared")
 		return nil
 	}}, &cobra.Command{Use: "list", Args: cobra.NoArgs, RunE: func(_ *cobra.Command, _ []string) error {
 		c, e := profiles.Load()
@@ -221,7 +225,7 @@ func (a *App) vaultCmd() *cobra.Command {
 			if n == active {
 				marker = "*"
 			}
-			fmt.Fprintf(a.outWriter(), "%s %s (%s)\n", marker, n, c.Vaults[n].Type)
+			fmt.Fprintf(a.humanOut(), "%s %s (%s)\n", marker, n, c.Vaults[n].Type)
 		}
 		return nil
 	}}, &cobra.Command{Use: "use <name>", Args: cobra.ExactArgs(1), RunE: func(_ *cobra.Command, args []string) error {

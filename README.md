@@ -21,6 +21,7 @@
 - **Share through your own Git repository.** Keep one encrypted vault in a private repo, using your existing Git authentication.
 - **Merge independent field edits automatically.** Two people can update different fields, even in the same service; cred merges their changes before publishing.
 - **Resolve conflicts deliberately.** Edits to the same field prompt for team, mine or cancel, without displaying the values.
+- **Manage credentials in the TUI.** Create, edit and delete projects, services and fields with `n`, `e` and `d`.
 - **Find credentials from the terminal.** Browse project → service → field, filter names and copy a value. Local vaults also work offline.
 
 cred combines a fully encrypted vault with application-level, three-way merging of
@@ -40,13 +41,12 @@ Prefer a source build? See [build instructions](docs/README.md).
 
 ```sh
 cred init
-cred add my-project vercel
 cred
 ```
 
-1. In `cred init`, choose **Create a local vault**, accept the name `local` and enter a master password of at least 12 characters twice. Answer `y` to use it by default.
-2. In `cred add`, unlock the vault, enter a field name such as `password`, its hidden value, and `y` for secret. Submit an empty field name to finish.
-3. Run `cred`, unlock, then press Enter to browse project → service → field. Enter on a field copies its value; `q` quits.
+1. In `cred init`, choose **Create a local vault**, accept the name `local` and enter a master password of at least 12 characters twice. Review and choose Create, then optionally choose Use this vault by default.
+2. Run `cred` and unlock. Press `n` to create a project, Enter to open it, then `n` to create a service. Open the service and press `n` to add a field; Tab moves between inputs and the Save/Cancel buttons. Enter advances through inputs; press Enter on Save to save.
+3. Browse project → service → field. Enter on a field copies its value; `e` edits, `d` asks to delete, and `q` quits.
 
 Clipboard copying currently uses macOS `pbcopy` / `pbpaste`. On Linux, retrieve a
 value with `cred my-project vercel password --show`.

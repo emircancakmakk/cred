@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/emircancakmakk/cred/internal/clipboard"
-	"github.com/emircancakmakk/cred/internal/crypto"
 	"github.com/emircancakmakk/cred/internal/profiles"
 	"github.com/emircancakmakk/cred/internal/vault"
 	"github.com/emircancakmakk/cred/internal/version"
@@ -84,8 +83,8 @@ func (a *App) Execute(args []string) error {
 		return err
 	}
 	root := a.root()
-	root.SetOut(a.outWriter())
-	root.SetErr(a.errWriter())
+	root.SetOut(a.humanOut())
+	root.SetErr(a.humanErr())
 	root.SetArgs(args)
 	return root.Execute()
 }
@@ -159,14 +158,8 @@ func (a *App) unlock() (*vault.Vault, string, []byte, error) {
 	if err != nil {
 		return nil, "", nil, err
 	}
-	password, err := prompter.ReadPassword(promptPassword)
+	loaded, password, err := a.readUnlockedVault(prompter, path)
 	if err != nil {
-		return nil, "", nil, err
-	}
-
-	loaded, err := a.loadVault(path, password)
-	if err != nil {
-		crypto.Wipe(password)
 		if errors.Is(err, vault.ErrVaultNotFound) {
 			return nil, "", nil, fmt.Errorf("%w (run cred init)", err)
 		}

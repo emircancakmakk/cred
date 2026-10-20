@@ -2,20 +2,41 @@
 
 `cred` with no arguments opens the project list. `cred --help` prints help.
 
+## Password entry
+
+Master passwords use an editable field, masked as `•` by default. Ctrl+R toggles
+show/hide; the screen labels the current state as Hidden or Visible. Arrow keys,
+Home/End, Backspace/Delete and paste work in the field. Tab / Shift+Tab moves
+between the field, Open/Continue and Cancel. Enter advances from the field;
+Enter on Open/Continue submits it. Empty input shows an error. Spaces are
+preserved. Esc or Ctrl+C cancels.
+
+Every entry, including password confirmation and retries, starts masked. The
+password screen uses the terminal's alternate screen and closes after submission
+or cancellation, without printing the password to command output.
+
+Opening an existing vault or connecting to one allows three password attempts.
+A wrong password clears the field and shows the remaining attempts. Empty input
+does not use an attempt. Missing or damaged vaults stop immediately. Creating a
+vault still requires entering the new password twice.
+
 ## Create a vault
 
 ```sh
 cred init
 ```
 
-With no profile argument, `cred init` opens an interactive menu. Use the arrow
-keys and Enter to select an option; Esc or Ctrl+C cancels the menu without
-creating a profile. A terminal is required for both the menu and password input.
+With no profile argument, `cred init` opens a single setup flow: choose the vault
+type, enter its details and password, review, then explicitly Create or Connect.
+Use arrows and Enter for choices; Tab / Shift+Tab moves through fields and
+buttons. Enter advances from a field and activates a focused button. Back returns
+to earlier input steps, preserving normal fields and clearing passwords. Esc or
+Ctrl+C cancels before creation. A terminal is required.
 
 | Option | Prompts and behavior |
 | --- | --- |
-| Create a local vault | Profile name (empty means `local`), new master password twice |
-| Connect to an existing team vault | Profile name, repository URL, existing master password once |
+| Create a local vault | Profile name (starts as `local`), new master password twice |
+| Connect to an existing team vault | Profile name, repository URL, existing master password (up to three attempts) |
 | Create a shared vault in an empty Git repository | Profile name, repository URL, new master password twice, first commit/push |
 
 Create the empty private Git repository yourself, using the provider's web UI or
@@ -29,14 +50,15 @@ profiles and vault files are never overwritten, and failed password validation
 does not register a profile. Opening an existing vault does not apply the length
 rule again.
 
-After successful guided setup, cred prints the profile, vault path and a usage
-example, then asks `Use this vault by default? [y/N]:`. Only `y` or `yes` changes
-the selected default. With `CRED_VAULT` set, explicitly select a profile or unset
-the variable before relying on the default.
+After successful guided setup, the result screen shows the profile, vault path
+and a usage example. Choose Finish, or explicitly choose Use this vault by default
+to change the selected default. With `CRED_VAULT` set, explicitly select a profile
+or unset the variable before relying on the default.
 
 `cred init personal` (or `cred --vault personal init`) skips the menu and creates
-a local profile directly, without a default-selection prompt. `cred connect team
-<repository>` remains the direct connection shortcut. To publish an existing local
+a local profile using the same password, review and result screens, skipping
+the known name. `cred connect team <repository>` remains the direct connection
+shortcut. To publish an existing local
 vault into an empty repository, use `cred connect team <repository> --from personal`;
 the source local vault remains independent.
 
@@ -65,9 +87,8 @@ cred add my-project
 ```
 
 The service name is prompted when it is omitted. Each field asks for a name,
-a hidden value, and whether the value is secret (`Secret? [y/N]`). An empty
-field name ends the list. An empty secret answer means the field is not
-secret. An empty value is allowed.
+a masked value, and a Visible/Secret choice. An empty field name ends the list.
+The visibility choice starts on Visible for a new field. An empty value is allowed.
 
 The file is written once, after every field in that run is accepted. If a
 field name already exists, nothing from that run is saved. The message names
@@ -131,9 +152,8 @@ cred set my-project vercel password
 ```
 
 `set` changes the value and the secret flag of a field that already exists.
-The value is prompted and hidden. On a secret field the prompt is
-`Secret? [Y/n]`; an empty answer keeps the current flag. A missing field is
-an error.
+The value is prompted in a masked field. The shared visibility selection starts
+on the current flag. A missing field is an error.
 
 ## List
 
@@ -158,8 +178,9 @@ cred rm my-project vercel
 cred rm my-project
 ```
 
-Every delete asks for confirmation. The prompt defaults to no: an empty
-answer, `n`, or any answer other than `y` or `yes` leaves the file unchanged.
+Every delete shows a confirmation panel with Cancel selected. Choose Delete
+explicitly and press Enter to proceed; Enter on Cancel or Esc leaves the file
+unchanged.
 Deleting the last field leaves the service in place. Deleting the last
 service leaves the project in place.
 
@@ -173,7 +194,7 @@ cred fil
 
 `cred` opens the project list after the master password prompt. Each row
 shows the project name and how many services it has. One name opens that
-project's service list. The password is asked once; moving between screens
+project's service list. After unlocking, moving between screens
 keeps the same unlocked snapshot.
 
 Enter moves forward: project, then service, then field. Enter on a field
@@ -181,7 +202,38 @@ copies that value to the clipboard. Arrow keys, `j`, and `k` move. `/` filters
 the current list. `s` shows the selected secret for 5 seconds, then masks it
 again. Esc or left returns to the previous screen, including from a service
 list opened with `cred <project>`. On the project list, Esc quits. `q` and
-Ctrl+C quit from any screen.
+Ctrl+C quit from any screen. In forms, `q` is ordinary text; Esc cancels the
+form and Ctrl+C exits.
+
+### Create, edit and delete in the browser
+
+The bottom bar shows `n new` and, when an item is selected, `e edit` and
+`d delete`. These act on projects in the project list, services inside a
+project, and fields inside a service. Empty projects and services can be created directly.
+
+- `n` opens a new-item form. `e` edits the selected item.
+- Projects and services have a name input. Fields have name, value and secret
+  inputs. Editing pre-fills the existing values; secret values are masked, and
+  new fields default to secret.
+- Forms open in a framed panel. Tab / Shift+Tab moves through the inputs,
+  Secret checkbox, Save and Cancel buttons. Space toggles the checkbox when
+  focused. Enter advances to the next item until a button is focused; Enter on
+  Save saves, and Enter on Cancel closes the form. Esc cancels immediately
+  without applying changes.
+- On small terminals, the panel scrolls to keep the focused input or button
+  visible. PgUp / PgDown scrolls the panel body to inspect longer messages.
+- Renaming preserves all descendants. Invalid or duplicate names are rejected
+  without overwriting existing records.
+- `d` opens a confirmation naming the selected item and, for a project or service,
+  counting the descendants that will also be deleted. Cancel is selected initially;
+  use Left/Right or Tab to choose Delete, then Enter to confirm. Esc cancels.
+
+Successful changes are saved immediately through the encrypted vault workflow,
+and the browser returns to the same list. Errors keep the form and its inputs.
+Shared vault saves use the existing Git sharing and conflict prompts; the browser
+releases the terminal for those prompts and resumes afterward. If a failed shared
+save retains recovery data, resolve it with `cred vault retry` or `cred vault
+discard` before saving another change.
 
 Secret fields are shown as `••••••`. Other values are shown in plain text.
 The status line names the field (`copied my-project/vercel/password`) and does not
@@ -207,3 +259,6 @@ afterward is left as it is.
 
 
 [← README](../README.md) · [Documentation](README.md)
+
+The [terminal interface guide](interface.md) describes shared screen layout,
+keyboard behavior and plain-text output compatibility.

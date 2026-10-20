@@ -265,7 +265,7 @@ func TestImportWrongPasswordLeavesVault(t *testing.T) {
 		"filiz/vercel/password": {Value: secretValue, Secret: true},
 	})
 	wrong := "incorrect-horse-xx"
-	stdout, stderr, err := runCmd(t, []string{"import", writeImport(t, body)}, []string{wrong}, nil)
+	stdout, stderr, err := runCmd(t, []string{"import", writeImport(t, body)}, []string{wrong, wrong, wrong}, nil)
 	if !errors.Is(err, vault.ErrWrongPassword) {
 		t.Fatalf("got %v", err)
 	}

@@ -15,10 +15,21 @@ func (a *App) initCmd() *cobra.Command {
 team vault, or create a shared vault in an empty Git repository you provide.
 
 cred init <name> creates a local vault directly. New passwords are read twice,
-hidden, and must be at least 12 characters. Existing profiles are never replaced.
+masked by default (Ctrl+R shows/hides), and must be at least 12 characters. Existing profiles are never replaced.
 The interactive setup creates named profiles even when CRED_VAULT is set.`, Args: cobra.MaximumNArgs(1), RunE: a.runInit}
 }
 func (a *App) runInit(_ *cobra.Command, args []string) error {
+	if a.Prompter == nil && a.setupMenu == nil {
+		request := setupRequest{}
+		if len(args) > 0 {
+			request.Name = args[0]
+			request.Fixed = true
+		} else if a.vaultName != "" {
+			request.Name = a.vaultName
+			request.Fixed = true
+		}
+		return a.runSetupWizard(request)
+	}
 	if len(args) == 0 && a.vaultName == "" {
 		return a.runSetup()
 	}
@@ -30,13 +41,13 @@ func (a *App) runInit(_ *cobra.Command, args []string) error {
 	if e != nil {
 		return e
 	}
-	fmt.Fprintf(a.errWriter(), "created %s\n", p.Path)
+	fmt.Fprintf(a.humanErr(), "created %s\n", p.Path)
 	return nil
 }
 func (a *App) runSetup() error {
 	choice, e := a.chooseSetup()
 	if errors.Is(e, errSetupCancelled) {
-		fmt.Fprintln(a.errWriter(), "cancelled")
+		fmt.Fprintln(a.humanErr(), "cancelled")
 		return nil
 	}
 	if e != nil {
@@ -86,7 +97,7 @@ func (a *App) runSetup() error {
 	if profile.Type == "git" {
 		path = profile.RepoDir() + "/vault.age"
 	}
-	fmt.Fprintf(a.errWriter(), "Ready: %s (%s)\nVault: %s\nTry: cred --vault %s\n", name, profile.Type, path, name)
+	fmt.Fprintf(a.humanErr(), "Ready: %s (%s)\nVault: %s\nTry: cred --vault %s\n", name, profile.Type, path, name)
 	answer, e := p.ReadLine("Use this vault by default? [y/N]: ")
 	if e != nil {
 		return fmt.Errorf("vault is ready; default selection was not changed: %w", e)
@@ -95,9 +106,9 @@ func (a *App) runSetup() error {
 		if e = setDefaultProfile(name); e != nil {
 			return e
 		}
-		fmt.Fprintf(a.errWriter(), "default vault: %s\n", name)
+		fmt.Fprintf(a.humanErr(), "default vault: %s\n", name)
 		if os.Getenv("CRED_VAULT") != "" {
-			fmt.Fprintln(a.errWriter(), "CRED_VAULT is set; unset CRED_VAULT to use this default without --vault.")
+			fmt.Fprintln(a.humanErr(), "CRED_VAULT is set; unset CRED_VAULT to use this default without --vault.")
 		}
 	}
 	return nil

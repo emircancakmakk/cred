@@ -82,7 +82,7 @@ func (a *App) runCopy(cmd *cobra.Command, args []string) error {
 	if err := copier.Copy(field.Value); err != nil {
 		return fmt.Errorf("copy %s: %w", label, err)
 	}
-	fmt.Fprintf(a.errWriter(), "copied %s\n", label)
+	fmt.Fprintf(a.humanErr(), "copied %s\n", label)
 	return nil
 }
 

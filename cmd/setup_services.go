@@ -151,11 +151,7 @@ func (a *App) connectProfile(name, repo, from string) (profiles.Profile, error) 
 	if e != nil {
 		return s.profile, e
 	}
-	password, e := p.ReadPassword(promptPassword)
-	if e != nil {
-		return s.profile, e
-	}
-	defer crypto.Wipe(password)
+
 	if from != "" {
 		source, _, e := profiles.Select(from)
 		if e != nil {
@@ -169,15 +165,18 @@ func (a *App) connectProfile(name, repo, from string) (profiles.Profile, error) 
 			return s.profile, e
 		}
 		defer release()
-		initial, e := a.loadVault(source.Path, password)
+		initial, password, e := a.readUnlockedVault(p, source.Path)
 		if e != nil {
 			return s.profile, e
 		}
+		defer crypto.Wipe(password)
 		return s.profile, a.startShared(s, g, password, initial)
 	}
-	if _, e = a.loadVault(g.Path(), password); e != nil {
+	_, password, e := a.readUnlockedVault(p, g.Path())
+	if e != nil {
 		return s.profile, e
 	}
+	defer crypto.Wipe(password)
 	return s.profile, s.register()
 }
 func requireEmpty(g *profiles.Git) error {

@@ -60,23 +60,25 @@ func (a *App) runDiscard(_ *cobra.Command, args []string) error {
 		return e
 	}
 	if !pending && !p.Initializing {
-		fmt.Fprintln(a.errWriter(), "nothing to discard")
+		fmt.Fprintln(a.humanErr(), "nothing to discard")
 		return nil
 	}
 	prompt, e := a.prompter()
 	if e != nil {
 		return e
 	}
+	description := fmt.Sprintf("Discard pending changes for %s and restore the remote vault? Local pending changes will be removed.", name)
 	question := fmt.Sprintf("Discard pending changes for %s and restore the remote vault? [y/N]: ", name)
 	if p.Initializing {
+		description = fmt.Sprintf("Discard unfinished setup for %s? If the remote is empty, the local profile, checkout and recovery files will be removed.", name)
 		question = fmt.Sprintf("Discard unfinished setup for %s? If the remote is empty, the local profile, checkout and recovery files will be removed. [y/N]: ", name)
 	}
-	answer, e := prompt.ReadLine(question)
+	confirmed, e := askConfirm(prompt, question, "Discard pending changes", description, "Discard", true)
 	if e != nil {
 		return e
 	}
-	if !parseConfirm(answer) {
-		fmt.Fprintln(a.errWriter(), "cancelled")
+	if !confirmed {
+		fmt.Fprintln(a.humanErr(), "cancelled")
 		return nil
 	}
 	g, e := profiles.OpenGit(p.Repo, p.RepoDir(), a.stage)
@@ -98,7 +100,7 @@ func (a *App) runDiscard(_ *cobra.Command, args []string) error {
 		if e != nil {
 			return e
 		}
-		fmt.Fprintf(a.errWriter(), "cancelled unfinished setup for %s; remote repository unchanged\n", name)
+		fmt.Fprintf(a.humanErr(), "cancelled unfinished setup for %s; remote repository unchanged\n", name)
 		return nil
 	}
 	password, e := prompt.ReadPassword(promptPassword)
@@ -126,7 +128,7 @@ func (a *App) runDiscard(_ *cobra.Command, args []string) error {
 	if e != nil {
 		return fmt.Errorf("remote restored but cleanup is incomplete; run cred vault discard %s again: %w", name, e)
 	}
-	fmt.Fprintf(a.errWriter(), "discarded pending changes for %s; restored remote vault\n", name)
+	fmt.Fprintf(a.humanErr(), "discarded pending changes for %s; restored remote vault\n", name)
 	return nil
 }
 func cleanDiscard(p profiles.Profile, g *profiles.Git) error {

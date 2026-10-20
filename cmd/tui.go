@@ -27,7 +27,7 @@ func (a *App) tuiCmd() *cobra.Command {
 }
 
 func (a *App) runTUI(_ *cobra.Command, args []string) error {
-	loaded, _, password, err := a.unlock()
+	loaded, path, password, err := a.unlock()
 	if err != nil {
 		return err
 	}
@@ -52,12 +52,12 @@ func (a *App) runTUI(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	label, err := tui.Run(projectsOf(loaded), start, copier, file, a.outWriter(), a.activeLabel())
+	label, err := tui.RunEditable(projectsOf(loaded), start, copier, a.tuiCommit(loaded, path, password), file, a.outWriter(), a.activeLabel())
 	if err != nil {
 		return err
 	}
 	if label != "" {
-		fmt.Fprintf(a.errWriter(), "copied %s\n", label)
+		fmt.Fprintf(a.humanErr(), "copied %s\n", label)
 	}
 	return nil
 }

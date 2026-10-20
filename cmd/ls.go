@@ -28,7 +28,7 @@ func (a *App) runLs(_ *cobra.Command, _ []string) error {
 		return err
 	}
 	defer crypto.Wipe(password)
-	_, err = io.WriteString(a.outWriter(), renderVault(loaded))
+	_, err = io.WriteString(a.humanOut(), renderVault(loaded))
 	return err
 }
 

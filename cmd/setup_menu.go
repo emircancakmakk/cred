@@ -2,11 +2,10 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
 	"os"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/emircancakmakk/cred/internal/terminalui"
 	"golang.org/x/term"
 )
 
@@ -24,10 +23,15 @@ var setupLabels = []string{"Create a local vault", "Connect to an existing team 
 type setupModel struct {
 	selected            setupChoice
 	accepted, cancelled bool
+	width, height       int
 }
 
 func (setupModel) Init() tea.Cmd { return nil }
 func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width, m.height = size.Width, size.Height
+		return m, nil
+	}
 	if key, ok := msg.(tea.KeyMsg); ok {
 		switch key.String() {
 		case "up", "k":
@@ -45,18 +49,20 @@ func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 func (m setupModel) View() string {
-	var b strings.Builder
-	b.WriteString("cred setup\n\nHow would you like to get started?\n\n")
-	for i, label := range setupLabels {
-		marker := "  "
-		if setupChoice(i) == m.selected {
-			marker = "> "
-		}
-		fmt.Fprintf(&b, "%s%s\n", marker, label)
+	options := []terminalui.Option{}
+	for _, label := range setupLabels {
+		options = append(options, terminalui.Option{Label: label})
 	}
-	b.WriteString("\n↑/↓ select · Enter continue · Esc cancel\n")
-	return b.String()
+	selection := terminalui.NewSelection(terminalui.SelectionSpec{Context: "Setup", Title: "Choose a vault", Options: options, Selected: int(m.selected)})
+	if m.width > 0 {
+		selection.Width = m.width
+	}
+	if m.height > 0 {
+		selection.Height = m.height
+	}
+	return selection.View()
 }
+
 func (a *App) chooseSetup() (setupChoice, error) {
 	if a.setupMenu != nil {
 		return a.setupMenu()

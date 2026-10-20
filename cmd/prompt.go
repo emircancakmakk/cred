@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/emircancakmakk/cred/internal/terminalui"
 	"golang.org/x/term"
 )
 
@@ -36,25 +37,19 @@ func (p *terminalPrompter) ReadPassword(prompt string) ([]byte, error) {
 	if !term.IsTerminal(int(p.in.Fd())) {
 		return nil, errors.New("interactive terminal required")
 	}
-	fmt.Fprint(p.out, prompt)
-	password, err := term.ReadPassword(int(p.in.Fd()))
-	fmt.Fprintln(p.out)
-	if err != nil {
-		return nil, fmt.Errorf("read password: %w", err)
-	}
-	return password, nil
+
+	return readPasswordScreen(prompt, p.in, p.out)
 }
 
 func (p *terminalPrompter) ReadLine(prompt string) (string, error) {
 	if !term.IsTerminal(int(p.in.Fd())) {
 		return "", errors.New("interactive terminal required")
 	}
-	fmt.Fprint(p.out, prompt)
-	line, err := readLine(p.in)
+	values, err := p.Form(terminalui.FormSpec{Context: "Input", Title: prompt, Fields: []terminalui.Field{{Label: prompt}}})
 	if err != nil {
 		return "", err
 	}
-	return line, nil
+	return values[0], nil
 }
 
 func readLine(in *os.File) (string, error) {

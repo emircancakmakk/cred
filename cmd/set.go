@@ -49,6 +49,6 @@ func (a *App) runSet(_ *cobra.Command, args []string) error {
 	if err := a.save(path, password, loaded); err != nil {
 		return err
 	}
-	fmt.Fprintf(a.errWriter(), "updated %s\n", fieldLabel(project, service, name))
+	fmt.Fprintf(a.humanErr(), "updated %s\n", fieldLabel(project, service, name))
 	return nil
 }

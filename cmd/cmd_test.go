@@ -384,7 +384,7 @@ func TestWrongPasswordDoesNotLeak(t *testing.T) {
 	setVaultEnv(t)
 	initVault(t)
 	wrong := "incorrect-horse-xx"
-	stdout, stderr, err := runCmd(t, []string{"ls"}, []string{wrong}, nil)
+	stdout, stderr, err := runCmd(t, []string{"ls"}, []string{wrong, wrong, wrong}, nil)
 	if !errors.Is(err, vault.ErrWrongPassword) {
 		t.Fatalf("got %v", err)
 	}
@@ -521,7 +521,7 @@ func TestCopyWrongPasswordDoesNotCopy(t *testing.T) {
 	saveCopyVault(t)
 	fake := &fakeCopier{}
 	wrong := "incorrect-horse-xx"
-	stdout, stderr, err := runApp(t, []string{"filiz", "vercel", "password"}, []string{wrong}, nil, fake)
+	stdout, stderr, err := runApp(t, []string{"filiz", "vercel", "password"}, []string{wrong, wrong, wrong}, nil, fake)
 	if !errors.Is(err, vault.ErrWrongPassword) {
 		t.Fatalf("got %v", err)
 	}

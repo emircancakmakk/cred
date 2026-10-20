@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/emircancakmakk/cred/internal/terminalui"
 	"github.com/emircancakmakk/cred/internal/vault"
 	"golang.org/x/term"
 )
@@ -19,7 +20,7 @@ func startProgress(out io.Writer, enabled bool, label string) func() {
 	}
 	done, finished := make(chan struct{}), make(chan struct{})
 	var once sync.Once
-	fmt.Fprintf(out, "\r\x1b[2K⠋ %s", label)
+	fmt.Fprintf(out, "\r\x1b[2K⠋ %s", terminalui.Message(label, terminalui.Accent))
 	go func() {
 		defer close(finished)
 		ticker := time.NewTicker(90 * time.Millisecond)
@@ -31,7 +32,7 @@ func startProgress(out io.Writer, enabled bool, label string) func() {
 			case <-done:
 				return
 			case <-ticker.C:
-				fmt.Fprintf(out, "\r\x1b[2K%s %s", frames[i%len(frames)], label)
+				fmt.Fprintf(out, "\r\x1b[2K%s %s", frames[i%len(frames)], terminalui.Message(label, terminalui.Accent))
 				i++
 			}
 		}

@@ -11,21 +11,23 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/emircancakmakk/cred/internal/terminalui"
 )
 
 const (
 	revealFor  = 5 * time.Second
 	secretMask = "••••••"
 	valueLimit = 40
-	helpLine   = "j/k move    enter select    esc back    / filter    s show    q quit"
 )
 
 var (
-	accent = lipgloss.AdaptiveColor{Light: "#0550AE", Dark: "#7AA2F7"}
-	ink    = lipgloss.AdaptiveColor{Light: "#1F2328", Dark: "#C0CAF5"}
-	muted  = lipgloss.AdaptiveColor{Light: "#656D76", Dark: "#565F89"}
-	rule   = lipgloss.AdaptiveColor{Light: "#D0D7DE", Dark: "#3B4261"}
-	good   = lipgloss.AdaptiveColor{Light: "#1A7F37", Dark: "#9ECE6A"}
+	accent = terminalui.Accent
+	ink    = terminalui.Ink
+	muted  = terminalui.Muted
+	rule   = terminalui.Rule
+	danger = terminalui.Danger
+	good   = terminalui.Good
 )
 
 type Copier interface {
@@ -75,6 +77,15 @@ var (
 )
 
 func Run(projects []Project, start string, copier Copier, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
+	return run(projects, start, copier, nil, in, out, vaultLabel...)
+}
+
+// RunEditable opens the browser with persistent CRUD support.
+func RunEditable(projects []Project, start string, copier Copier, commit Commit, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
+	return run(projects, start, copier, commit, in, out, vaultLabel...)
+}
+
+func run(projects []Project, start string, copier Copier, commit Commit, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
 	m, err := newModel(projects, start, copier)
 	if err != nil {
 		return "", err
@@ -82,6 +93,7 @@ func Run(projects []Project, start string, copier Copier, in io.Reader, out io.W
 	if len(vaultLabel) > 0 {
 		m.vaultLabel = vaultLabel[0]
 	}
+	m.commit = commit
 	opts := []tea.ProgramOption{tea.WithAltScreen()}
 	if in != nil {
 		opts = append(opts, tea.WithInput(in))
@@ -101,20 +113,25 @@ func Run(projects []Project, start string, copier Copier, in io.Reader, out io.W
 }
 
 type model struct {
-	vaultLabel  string
-	projects    []Project
-	projectList list.Model
-	serviceList list.Model
-	fieldList   list.Model
-	mode        screen
-	projectIx   int
-	reveal      *revealState
-	copier      Copier
-	status      string
-	lastCopied  string
-	width       int
-	height      int
-	rows        *rowDelegate
+	commit       Commit
+	editor       *editor
+	deleting     *deletion
+	dialogScroll int
+	saving       bool
+	vaultLabel   string
+	projects     []Project
+	projectList  list.Model
+	serviceList  list.Model
+	fieldList    list.Model
+	mode         screen
+	projectIx    int
+	reveal       *revealState
+	copier       Copier
+	status       string
+	lastCopied   string
+	width        int
+	height       int
+	rows         *rowDelegate
 }
 
 func newModel(projects []Project, start string, copier Copier) (model, error) {
@@ -169,6 +186,8 @@ func (m model) Init() tea.Cmd { return nil }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case saved:
+		return m.finishSave(msg), nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -180,6 +199,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, keyStop) {
 			return m.fit(), tea.Quit
 		}
+		if m.editor != nil || m.deleting != nil {
+			return m.updateDialog(msg)
+		}
 		if m.active().SettingFilter() {
 			m, cmd = m.forward(msg)
 			break
@@ -188,6 +210,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd = m.onKey(msg)
 		m = next.(model)
 	default:
+		if m.editor != nil || m.deleting != nil {
+			return m.updateDialog(msg)
+		}
 		m, cmd = m.forward(msg)
 	}
 	return m.fit(), cmd
@@ -195,6 +220,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) onKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
+	case msg.String() == "n":
+		return m.startEditor(false)
+	case msg.String() == "e":
+		return m.startEditor(true)
+	case msg.String() == "d":
+		return m.startDelete(), nil
 	case key.Matches(msg, keyQuit):
 		return m, tea.Quit
 	case key.Matches(msg, keyBack):
@@ -369,11 +400,11 @@ func (m model) resize(width, height int) model {
 	m.width = width
 	m.height = height
 	if m.rows != nil {
-		m.rows.width = width - 2
+		m.rows.width = max(1, min(96, width)-4)
 	}
-	m.projectList.SetSize(width, m.paneHeight(m.projectList))
-	m.serviceList.SetSize(width, m.paneHeight(m.serviceList))
-	m.fieldList.SetSize(width, m.paneHeight(m.fieldList))
+	m.projectList.SetSize(max(1, min(96, width)-4), m.paneHeight(m.projectList))
+	m.serviceList.SetSize(max(1, min(96, width)-4), m.paneHeight(m.serviceList))
+	m.fieldList.SetSize(max(1, min(96, width)-4), m.paneHeight(m.fieldList))
 	return m
 }
 
@@ -382,7 +413,7 @@ func (m model) paneHeight(lst list.Model) int {
 	if n < 1 {
 		n = 1
 	}
-	maxHeight := m.height - 5
+	maxHeight := m.height - 9 - lipgloss.Height(wrapHelp(m.browserHelp(), max(1, min(96, m.width)-4)))
 	if maxHeight < 3 {
 		maxHeight = 3
 	}
@@ -393,26 +424,42 @@ func (m model) paneHeight(lst list.Model) int {
 }
 
 func (m model) View() string {
+	if m.editor != nil || m.deleting != nil {
+		return m.dialogView()
+	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", m.header())
 	if m.active().SettingFilter() {
-		prompt := lipgloss.NewStyle().Foreground(accent).Render("/ ")
-		query := lipgloss.NewStyle().Foreground(ink).Render(m.active().FilterValue())
-		fmt.Fprintf(&b, "%s%s\n", prompt, query)
+		b.WriteString(terminalui.Message("/ "+m.active().FilterValue(), accent) + "\n")
 	}
-	b.WriteString(strings.TrimRight(m.active().View(), "\n"))
+	if len(m.active().Items()) == 0 {
+		noun := "projects"
+		switch m.mode {
+		case screenServices:
+			noun = "services"
+		case screenFields:
+			noun = "fields"
+		}
+		b.WriteString("No " + noun + ".")
+		if m.commit != nil {
+			b.WriteString("\nPress n to create the first item.")
+		}
+	} else {
+		b.WriteString(strings.TrimRight(m.active().View(), "\n"))
+	}
 	if m.status != "" {
-		fmt.Fprintf(&b, "\n%s", lipgloss.NewStyle().Foreground(good).Render(m.status))
+		color := good
+		if m.status == "copy failed" {
+			color = danger
+		} else if m.status == "editing unavailable" {
+			color = terminalui.Warning
+		}
+		b.WriteString("\n" + terminalui.Message(m.status, color))
 	}
-	fmt.Fprintf(&b, "\n%s\n", m.footer())
-	return b.String()
+	view, _ := (terminalui.Frame{Header: m.header(), Title: m.crumb(), Body: b.String(), Help: m.browserHelp(), Width: m.width, Height: m.height, MaxWidth: 96}).Render()
+	return view
 }
-
 func (m model) header() string {
-	brand := lipgloss.NewStyle().Bold(true).Foreground(accent)
-	label := lipgloss.NewStyle().Bold(true).Foreground(ink)
-	gap := lipgloss.NewStyle().Foreground(muted)
-	return brand.Render("cred") + gap.Render("  "+m.vaultLabel+"  ") + label.Render(m.crumb())
+	return terminalui.Header(strings.TrimSpace(m.vaultLabel + "  " + m.crumb()))
 }
 
 func (m model) crumb() string {
@@ -431,14 +478,35 @@ func (m model) crumb() string {
 }
 
 func (m model) footer() string {
-	width := m.width
-	if width < 20 {
-		width = 20
-	}
+	width := max(1, m.width)
 	bar := lipgloss.NewStyle().Foreground(rule).Render(strings.Repeat("─", width))
-	help := lipgloss.NewStyle().Foreground(muted).Render(helpLine)
+	help := lipgloss.NewStyle().Foreground(muted).Render(wrapHelp(m.browserHelp(), width))
 	return "\n" + bar + "\n" + help
 }
+
+func (m model) browserHelp() []string {
+	if m.active().SettingFilter() {
+		return []string{"enter apply", "esc cancel"}
+	}
+	open := "enter select"
+	if m.mode == screenFields {
+		open = "enter copy"
+	}
+	help := []string{"j/k move", open, "esc back", "/ filter"}
+	if m.mode == screenFields {
+		help = append(help, "s show")
+	}
+	if m.commit != nil {
+		help = append(help, "n new")
+		if m.active().SelectedItem() != nil {
+			help = append(help, "e edit", "d delete")
+		}
+	}
+	return append(help, "q quit")
+}
+
+// Keep each shortcut together where space allows; hard-wrap only tiny terminals.
+func wrapHelp(items []string, width int) string { return terminalui.Help(items, width) }
 
 func (m model) active() list.Model {
 	switch m.mode {
@@ -565,10 +633,7 @@ func (d *rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	if !ok {
 		return
 	}
-	width := d.width
-	if width < 24 {
-		width = 24
-	}
+	width := max(1, d.width)
 	selected := index == m.Index() && m.FilterState() != list.Filtering
 	marker := "  "
 	nameStyle := lipgloss.NewStyle().Foreground(ink)
@@ -578,14 +643,18 @@ func (d *rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	} else if m.FilterState() == list.Filtering && m.FilterValue() == "" {
 		nameStyle = lipgloss.NewStyle().Foreground(muted)
 	}
-	meta := row.Meta()
+	meta := ansi.Truncate(row.Meta(), max(0, width-12), "…")
+	if width < 12 {
+		fmt.Fprint(w, ansi.Truncate(marker+row.Title(), width, "…"))
+		return
+	}
 	metaStyled := lipgloss.NewStyle().Foreground(muted).Render(meta)
 	metaWidth := lipgloss.Width(metaStyled)
 	room := width - lipgloss.Width(marker) - metaWidth - 2
 	if room < 8 {
 		room = 8
 	}
-	name := clip(row.Title(), room)
+	name := ansi.Truncate(row.Title(), room, "…")
 	shown := nameStyle.Render(name)
 	if m.FilterState() == list.Filtering || m.FilterState() == list.FilterApplied {
 		if matches := m.MatchesForItem(index); matchesInside(matches, name) {

@@ -45,7 +45,7 @@ func (a *App) runImport(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("import file: %w", err)
 	}
 	if incoming.FieldCount() == 0 {
-		fmt.Fprintln(a.errWriter(), "no fields added")
+		fmt.Fprintln(a.humanErr(), "no fields added")
 		return nil
 	}
 
@@ -64,7 +64,7 @@ func (a *App) runImport(_ *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	reportImport(a.errWriter(), result)
+	reportImport(a.humanErr(), result)
 	return nil
 }
 

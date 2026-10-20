@@ -49,12 +49,24 @@ func (a *App) runRm(_ *cobra.Command, args []string) error {
 		return err
 	}
 	label := fieldLabel(project, service, field)
-	answer, err := prompter.ReadLine(fmt.Sprintf("Delete %s? [y/N]: ", label))
+	description := "Delete " + label + "? This cannot be undone."
+	if field == "" {
+		if service != "" {
+			description += fmt.Sprintf(" Also deletes %d fields.", len(loaded.Projects[project].Services[service].Fields))
+		} else {
+			fields := 0
+			for _, s := range loaded.Projects[project].Services {
+				fields += len(s.Fields)
+			}
+			description += fmt.Sprintf(" Also deletes %d services and %d fields.", len(loaded.Projects[project].Services), fields)
+		}
+	}
+	confirmed, err := askConfirm(prompter, fmt.Sprintf("Delete %s? [y/N]: ", label), "Delete credential", description, "Delete", true)
 	if err != nil {
 		return err
 	}
-	if !parseConfirm(answer) {
-		fmt.Fprintln(a.errWriter(), "cancelled")
+	if !confirmed {
+		fmt.Fprintln(a.humanErr(), "cancelled")
 		return nil
 	}
 
@@ -72,7 +84,7 @@ func (a *App) runRm(_ *cobra.Command, args []string) error {
 	if err := a.save(path, password, loaded); err != nil {
 		return err
 	}
-	fmt.Fprintf(a.errWriter(), "deleted %s\n", label)
+	fmt.Fprintf(a.humanErr(), "deleted %s\n", label)
 	return nil
 }
 

@@ -183,7 +183,7 @@ func TestWizardValidation(t *testing.T) {
 	if e == nil || !strings.Contains(e.Error(), "empty repository") {
 		t.Fatal(e)
 	}
-	_, e = runWizard(t, setupConnect, []string{"wrong-password"}, []string{"wrong", repo})
+	_, e = runWizard(t, setupConnect, []string{"wrong-password", "wrong-password", "wrong-password"}, []string{"wrong", repo})
 	if !errors.Is(e, vault.ErrWrongPassword) {
 		t.Fatal(e)
 	}

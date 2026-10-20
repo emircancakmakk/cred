@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/emircancakmakk/cred/cmd"
@@ -17,7 +16,7 @@ func main() {
 	}
 	app := cmd.NewApp(os.Stdin, os.Stdout, os.Stderr)
 	if err := app.Execute(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "cred: %s\n", err)
+		app.PrintError(err)
 		os.Exit(1)
 	}
 }

@@ -2,6 +2,7 @@
 
 Start with the [30-second quick start](../README.md#30-second-quick-start).
 
+- [Terminal interface](interface.md): shared layout, keyboard behavior and output compatibility.
 - [Usage](usage.md): guided setup, add, import, edit, list, delete, selector and clipboard.
 - [Local and shared Git profiles](git-profiles.md): connect a team, share a vault and merge concurrent edits.
 - [Retry and discard](recovery.md): recover unpublished changes and incomplete setup.
