@@ -18,11 +18,12 @@ make demo
 
 This builds the current source into a temporary directory and records:
 
-- `assets/quick-start.gif`: guided local setup, one secret field, then browsing
-  project → service → field. It exits before copying, leaving the clipboard alone.
+- `assets/quick-start.gif`: guided local setup and default-vault selection, then
+  creating a project → service → secret field inside the TUI. It demonstrates reveal/hide
+  and the edit form, then exits without copying to the clipboard.
 - `assets/git-merge.gif`: two real Git profiles edit a shared vault concurrently.
   Different fields merge automatically; the next scene edits the same field and
-  chooses `2` (mine) at cred's conflict prompt.
+  selects **Use my value** in cred's conflict screen.
 
 The runner gives its child processes disposable home/config directories, clears
 `CRED_VAULT` and isolates Git identity/configuration. It creates a local bare Git
@@ -31,8 +32,8 @@ is removed when the runner exits. GIFs are written to `assets/` and are not uplo
 All passwords and values in the tapes/helpers are public, fake demo data.
 
 The Git helper uses Python's standard-library pseudo-terminals to coordinate
-actual CLI prompts. Alice pauses after unlocking while Bob publishes, ensuring
-the demo exercises concurrent publication. The helper verifies both independent
+actual CLI prompts. Alice pauses at the visibility selection while Bob publishes,
+ensuring the demo exercises concurrent publication. The helper verifies both independent
 edits survive and that the selected conflict value is published. Comments and
 verification lines explain the scenario; command output comes from cred itself.
 The master password is supplied through terminal input, not an environment variable.
@@ -41,9 +42,11 @@ To run the Git scenarios and assertions without rendering, use
 `python3 demos/record.py --check`. To re-record only one GIF, use
 `python3 demos/record.py quick-start` or `python3 demos/record.py git-merge`.
 
-Edit `.tape` files for presentation/timing. `Wait+Line` synchronizes prompts;
-fixed pauses provide reading time. Recordings use 1000×600 pixels at 12 fps with
-a dark theme. Aim for less than 5 MB per GIF and inspect representative frames
-after changing tapes or CLI output.
+Edit `.tape` files for presentation/timing. `Wait+Screen` synchronizes TUI screens;
+fixed pauses provide reading time. Recordings use the Cred Black palette with a
+pure black background, 70 ms typing, 12 fps and 0.8× playback. Form and conflict
+selections pause for readability. Dimensions are 1000×720 pixels for quick-start
+(to fit the full field editor) and 1000×600 for git-merge. Aim for less than 5 MB
+per GIF and inspect representative frames after changing tapes or CLI output.
 
 [← Documentation](../docs/README.md)

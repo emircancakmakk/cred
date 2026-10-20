@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import pty
 import select
+import shutil
 import struct
 import subprocess
 import sys
@@ -23,7 +24,8 @@ class Session:
         self.buffer = b''
         self.all_output = b''
         self.master, slave = pty.openpty()
-        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 95, 0, 0))
+        size = shutil.get_terminal_size((80, 24))
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', size.lines, size.columns, 0, 0))
         self.process = subprocess.Popen(['cred', *args], stdin=slave, stdout=slave,
                                         stderr=slave, start_new_session=True)
         os.close(slave)
@@ -54,7 +56,20 @@ class Session:
         self.buffer = self.buffer.split(target, 1)[1]
 
     def send(self, text):
-        os.write(self.master, (text + '\n').encode())
+        if self.visible:
+            self.pause(1.2)
+        os.write(self.master, (text + '\r').encode())
+
+    def pause(self, seconds):
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            if not self.read(min(0.1, max(0, deadline - time.monotonic()))):
+                break
+
+    def form(self, text):
+        # Enter first focuses Continue/Open, then submits the form.
+        self.send(text)
+        self.send('')
 
     def finish(self):
         deadline = time.monotonic() + 40
@@ -77,41 +92,51 @@ class Session:
 
 def unlock(args, visible=False):
     s = Session(args, visible)
-    s.expect('Master password:')
-    s.send(PASSWORD)
+    s.expect('Master password')
+    s.form(PASSWORD)
     return s
 
 
 def setup():
     subprocess.run(['git', 'init', '--bare', '--initial-branch=main', str(REPO)],
                    check=True, stdout=subprocess.DEVNULL)
-    s = unlock(['init', 'seed'])
-    s.expect('Repeat master password:')
+    s = Session(['init', 'seed'])
+    s.expect('Create a password')
     s.send(PASSWORD)
+    s.form(PASSWORD)
+    s.expect('Review vault')
+    s.send('')
+    s.expect('Vault ready')
+    s.send('')
     s.finish()
     s = unlock(['--vault', 'seed', 'add', 'my-project', 'vercel'])
     for name, value, secret in [('email', 'original@example.invalid', 'n'),
                                  ('password', 'original-demo-token', 'y')]:
         s.expect('Field name')
-        s.send(name)
-        s.expect('Value:')
-        s.send(value)
-        s.expect('Secret?')
-        s.send(secret)
+        s.form(name)
+        s.expect('Field value')
+        s.form(value)
+        s.expect('Field visibility')
+        s.send('j' if secret == 'y' else '')
     s.expect('Field name')
-    s.send('')
+    s.form('')
     s.finish()
-    unlock(['connect', 'alice', str(REPO), '--from', 'seed']).finish()
-    unlock(['connect', 'bob', str(REPO)]).finish()
+    for client, extra in [('alice', ['--from', 'seed']), ('bob', [])]:
+        s = unlock(['connect', client, str(REPO), *extra])
+        s.expect('Review vault')
+        s.send('')
+        s.expect('Vault ready')
+        s.send('')
+        s.finish()
     print('DEMO READY', flush=True)
 
 
 def start_edit(client, field, value):
     print(f'$ cred --vault {client} set my-project vercel {field}', flush=True)
     s = unlock(['--vault', client, 'set', 'my-project', 'vercel', field], visible=True)
-    s.expect('Value:')
-    s.send(value)
-    s.expect('Secret?')
+    s.expect('Field value')
+    s.form(value)
+    s.expect('Field visibility')
     # Hold Alice before save, so Bob starts from the same remote commit.
     return s
 
@@ -131,7 +156,7 @@ def merge():
     print('\n# Alice saves: cred merges the two fields and publishes.', flush=True)
     alice.send('')
     output = alice.finish()
-    assert 'Conflict at ' not in output, output
+    assert 'Choose a value' not in output, output
     assert 'alice-demo-token' in get('password')
     assert 'bob@example.invalid' in get('email')
     print('Independent edits verified: both fields survived.', flush=True)
@@ -146,10 +171,13 @@ def conflict():
     bob.finish()
     print('\n# Alice saves; this time a choice is required.', flush=True)
     alice.send('')
-    alice.expect('Conflict at my-project/vercel/password:')
-    alice.expect('(default):')
-    time.sleep(3)
-    alice.send('2')
+    alice.expect('Choose a value')
+    alice.expect('Use my value')
+    alice.pause(3)
+    for _ in range(2):
+        os.write(alice.master, b'\x1b[B')
+        alice.pause(0.7)
+    alice.send('')
     alice.finish()
     assert 'alice-new-demo-token' in get('password')
     assert 'bob@example.invalid' in get('email')
