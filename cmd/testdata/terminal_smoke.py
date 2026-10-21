@@ -61,6 +61,33 @@ try:
     pos=send(b'\x1b[B\r');wait(b'New field',pos)
     pos=send(b'pty-field-secret\r\r\r');wait(b'created password',pos)
     assert b'pty-field-secret' not in output
+    pos=send(b'm');wait(b'Saved emails',pos)
+    pos=send(b'n');wait(b'Add email addresses',pos)
+    # Bracketed paste preserves newlines without activating buttons.
+    pos=send(b'\x1b[200~personal@example.com\nwork@example.com;PERSONAL@example.com\x1b[201~')
+    pos=send(b'\t\r');wait(b'Review email addresses',pos);wait(b'2 to add, 1 duplicates skipped',pos)
+    pos=send(b'\r');wait(b'Saved email addresses updated',pos)
+    send(b'\x1b')
+    pos=send(b'n');wait(b'Choose field name',pos)
+    pos=send(b'\r');wait(b'New field',pos)
+    pos=send(b'\x05');wait(b'Choose saved email',pos)
+    pos=send(b'\x1b[B\r');wait(b'New field',pos)
+    pos=send(b'\r\r\r');wait(b'created email',pos)
+    # Edit chooses another address, then explicitly saves the copied value.
+    pos=send(b'e');wait(b'Edit field',pos)
+    pos=send(b'\x05');wait(b'Choose saved email',pos)
+    send(b'\r')
+    pos=send(b'\r\r\r');wait(b'updated email',pos)
+    pos=send(b'q');wait(b'Master password',pos)
+    pos=send(password+b'\r\r');wait(b'Projects',pos)
+    send(b'\r\r')
+    pos=send(b'e');wait(b'Edit field',pos)
+    pos=send(b'\x05');wait(b'Choose saved email',pos)
+    send(b'/')
+    pos=send(b'work');wait(b'work',pos)
+    send(b'\r')
+    send(b'\r')
+    pos=send(b'\r\r\r');wait(b'updated email',pos)
     pos=send(b'q');wait(b'PTY_DONE',pos)
     proc.wait(timeout=5)
     assert proc.returncode==0
@@ -71,7 +98,7 @@ try:
     before[3]&=~getattr(termios,'PENDIN',0)
     after[3]&=~getattr(termios,'PENDIN',0)
     assert before==after, 'terminal input modes were not restored'
-    print('PTY: setup, reveal/hide, Back, unlock, CRUD, cleanup passed')
+    print('PTY: setup, reveal/hide, Back, unlock, CRUD, email batch/picker/restart, cleanup passed')
 finally:
     if proc.poll() is None:
         proc.kill()

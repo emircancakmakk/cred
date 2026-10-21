@@ -9,7 +9,10 @@ import (
 	"unicode/utf8"
 )
 
-const currentVersion = 1
+const (
+	legacyVersion  = 1
+	currentVersion = 2
+)
 
 const minPasswordRunes = 12
 
@@ -80,13 +83,15 @@ type Project struct {
 }
 
 type Vault struct {
-	Version  int                `json:"version"`
-	Projects map[string]Project `json:"projects"`
+	Version     int                `json:"version"`
+	Projects    map[string]Project `json:"projects"`
+	SavedEmails map[string]string  `json:"saved_emails,omitempty"`
 }
 
+// New keeps unused collections compatible with v1 readers. Collection writes promote to v2.
 func New() *Vault {
 	return &Vault{
-		Version:  currentVersion,
+		Version:  legacyVersion,
 		Projects: map[string]Project{},
 	}
 }

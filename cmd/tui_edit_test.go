@@ -39,7 +39,7 @@ func TestTUICommitPersistsCRUDWithoutLosingDescendants(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(snapshot, projectsOf(disk)) {
+		if !reflect.DeepEqual(snapshot, snapshotOf(disk)) {
 			t.Fatal("browser differs from encrypted vault")
 		}
 		if change.Action == tui.Edit && change.Kind == tui.ServiceKind {
@@ -72,7 +72,7 @@ func TestTUICommitFailureKeepsLastSuccessfulState(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot, err := commit(change)
-	if err != nil || len(snapshot) != 1 || snapshot[0].Name != "retry" {
+	if err != nil || len(snapshot.Projects) != 1 || snapshot.Projects[0].Name != "retry" {
 		t.Fatalf("retry failed: %v", err)
 	}
 	before, err := os.ReadFile(path)
@@ -116,7 +116,7 @@ func TestTUICommitRefreshesGitSnapshotAndMergeBase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snapshot) != 1 || snapshot[0].Services[0].Fields[1].Value != "team" {
+	if len(snapshot.Projects) != 1 || snapshot.Projects[0].Services[0].Fields[1].Value != "team" {
 		t.Fatal("merged remote field missing in browser")
 	}
 	if app.base.Projects["p"].Services["s"].Fields["b"].Value != "team" {

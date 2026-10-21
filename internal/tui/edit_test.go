@@ -11,7 +11,7 @@ import (
 )
 
 func editable(m model) model {
-	m.commit = func(Change) ([]Project, error) { return nil, nil }
+	m.commit = func(Change) (Snapshot, error) { return Snapshot{}, nil }
 	return m
 }
 
@@ -139,7 +139,7 @@ func TestSaveFailurePreservesInputsAndSuccessRestoresContext(t *testing.T) {
 			projects[0].Services[i].Fields[1] = Field{Name: "renamed", Value: "replacement", Secret: true}
 		}
 	}
-	m = m.finishSave(saved{change: c, projects: projects})
+	m = m.finishSave(saved{change: c, snapshot: Snapshot{Projects: projects}})
 	if m.editor != nil || m.mode != screenFields || selectedTitle(m) != "renamed" || m.crumb() != "filiz  /  vercel" {
 		t.Fatalf("wrong restored context %s %s", m.crumb(), selectedTitle(m))
 	}
@@ -163,7 +163,7 @@ func TestEmptyListCreationAndValidation(t *testing.T) {
 	}
 	m.editor.name.SetValue("first")
 	c := Change{Action: Create, Kind: ProjectKind, NewName: "first"}
-	m = m.finishSave(saved{change: c, projects: []Project{{Name: "first"}}})
+	m = m.finishSave(saved{change: c, snapshot: Snapshot{Projects: []Project{{Name: "first"}}}})
 	if selectedTitle(m) != "first" {
 		t.Fatal("new project not selected")
 	}
@@ -178,7 +178,7 @@ func TestDeleteLastItemKeepsParentList(t *testing.T) {
 	m := editable(mustModel(t, []Project{{Name: "p", Services: []Service{{Name: "s", Fields: []Field{{Name: "f"}}}}}}, "p", nil))
 	m = update(t, m, "enter")
 	m = update(t, m, "d")
-	m = m.finishSave(saved{change: m.deleting.change, projects: []Project{{Name: "p", Services: []Service{{Name: "s"}}}}})
+	m = m.finishSave(saved{change: m.deleting.change, snapshot: Snapshot{Projects: []Project{{Name: "p", Services: []Service{{Name: "s"}}}}}})
 	if m.mode != screenFields || !strings.Contains(m.View(), "No fields") {
 		t.Fatal("delete last field lost parent context")
 	}
@@ -203,9 +203,9 @@ func (m exitAfterSave) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func TestProgramExecPersistsAndReturnsToBrowser(t *testing.T) {
 	m := mustModel(t, nil, "", nil)
 	var received Change
-	m.commit = func(c Change) ([]Project, error) {
+	m.commit = func(c Change) (Snapshot, error) {
 		received = c
-		return []Project{{Name: c.NewName}}, nil
+		return Snapshot{Projects: []Project{{Name: c.NewName}}}, nil
 	}
 	p := tea.NewProgram(exitAfterSave{m}, tea.WithInput(strings.NewReader("")), tea.WithOutput(io.Discard), tea.WithoutRenderer())
 	type outcome struct {
@@ -237,7 +237,7 @@ func TestEditingNamePreservesImportedValue(t *testing.T) {
 	m = update(t, m, "e")
 	m.editor.name.SetValue("renamed")
 	var received Change
-	m.commit = func(c Change) ([]Project, error) { received = c; return nil, nil }
+	m.commit = func(c Change) (Snapshot, error) { received = c; return Snapshot{}, nil }
 	p := tea.NewProgram(exitAfterSave{m}, tea.WithInput(strings.NewReader("")), tea.WithOutput(io.Discard), tea.WithoutRenderer())
 	done := make(chan error, 1)
 	go func() { _, err := p.Run(); done <- err }()
@@ -323,9 +323,9 @@ func TestNewFieldPicker(t *testing.T) {
 		}
 		e.setFocus(e.saveFocus())
 		var received Change
-		m.commit = func(c Change) ([]Project, error) {
+		m.commit = func(c Change) (Snapshot, error) {
 			received = c
-			return nil, errors.New("duplicate field")
+			return Snapshot{}, errors.New("duplicate field")
 		}
 		p := tea.NewProgram(exitAfterSave{m}, tea.WithInput(strings.NewReader("")), tea.WithOutput(io.Discard), tea.WithoutRenderer())
 		done := make(chan error, 1)

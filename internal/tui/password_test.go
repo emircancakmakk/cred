@@ -86,7 +86,7 @@ func TestGeneratedPasswordReachesCommit(t *testing.T) {
 		value := m.editor.value.Value()
 		m.editor.setFocus(m.editor.saveFocus())
 		var received Change
-		m.commit = func(c Change) ([]Project, error) { received = c; return sampleProjects(), nil }
+		m.commit = func(c Change) (Snapshot, error) { received = c; return Snapshot{Projects: sampleProjects()}, nil }
 		p := tea.NewProgram(exitAfterSave{m}, tea.WithInput(strings.NewReader("")), tea.WithOutput(io.Discard), tea.WithoutRenderer())
 		done := make(chan error, 1)
 		go func() { _, err := p.Run(); done <- err }()

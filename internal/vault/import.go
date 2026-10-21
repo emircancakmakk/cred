@@ -50,7 +50,7 @@ func ParseImport(data []byte) (*Vault, error) {
 	if err := json.Unmarshal(data, &header); err != nil {
 		return nil, ErrInvalidImport
 	}
-	if header.Version != currentVersion {
+	if header.Version != legacyVersion {
 		return nil, ErrUnsupportedVersion
 	}
 
@@ -106,7 +106,7 @@ func (v *Vault) Merge(src *Vault) (MergeResult, error) {
 	if v == nil || src == nil {
 		return MergeResult{}, errNilVault
 	}
-	next := cloneVault(v)
+	next := Clone(v)
 	var skipped []string
 	added := 0
 	err := eachField(src, func(project, service, name string, field Field) error {
@@ -148,40 +148,6 @@ func (v *Vault) alreadyPresent(project, service, name string) bool {
 	}
 	_, exists := s.Fields[name]
 	return exists
-}
-
-func cloneVault(v *Vault) *Vault {
-	out := &Vault{Version: v.Version}
-	if v.Projects == nil {
-		return out
-	}
-	out.Projects = make(map[string]Project, len(v.Projects))
-	for projectName, project := range v.Projects {
-		out.Projects[projectName] = cloneProject(project)
-	}
-	return out
-}
-
-func cloneProject(project Project) Project {
-	if project.Services == nil {
-		return Project{}
-	}
-	services := make(map[string]Service, len(project.Services))
-	for name, service := range project.Services {
-		services[name] = cloneService(service)
-	}
-	return Project{Services: services}
-}
-
-func cloneService(service Service) Service {
-	if service.Fields == nil {
-		return Service{}
-	}
-	fields := make(map[string]Field, len(service.Fields))
-	for name, field := range service.Fields {
-		fields[name] = field
-	}
-	return Service{Fields: fields}
 }
 
 func eachField(v *Vault, fn func(project, service, name string, field Field) error) error {

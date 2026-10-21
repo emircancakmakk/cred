@@ -18,6 +18,9 @@ func (m model) dialogView() string {
 }
 
 func (m model) renderDialog() (string, int) {
+	if m.editor != nil && m.editor.emailPicker != nil {
+		return m.emailPickerView(), 0
+	}
 	if e := m.editor; e != nil && e.picker != nil {
 		e.picker.Width, e.picker.Height = m.width, m.height
 		return e.picker.View(), e.picker.Scroll
@@ -80,6 +83,15 @@ func (m model) renderDialog() (string, int) {
 			add(dialogChoice("[ Generate password ]", e.focus == 3, false, m.saving))
 			if e.generateErr != "" {
 				add(lipgloss.NewStyle().Foreground(danger).Render(e.generateErr))
+			}
+			if e.isEmail() {
+				help = append(help, "ctrl+e saved emails")
+				add("")
+				if e.focus == 4 {
+					anchor = len(body)
+					help[1] = "enter choose"
+				}
+				add(dialogChoice("[ Choose saved email ]", e.focus == 4, false, m.saving))
 			}
 		}
 		add("")

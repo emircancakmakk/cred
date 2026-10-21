@@ -191,6 +191,22 @@ func TestTerminalInterfaceHelper(t *testing.T) {
 	if err := app.Execute([]string{"--vault", "ptyvault"}); err != nil {
 		t.Fatal(err)
 	}
+	// Reopen to verify saved addresses survive a fresh TUI session.
+	if err := app.Execute([]string{"--vault", "ptyvault"}); err != nil {
+		t.Fatal(err)
+	}
+	config, err := profiles.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := vault.Load(config.Vaults["ptyvault"].Path, []byte("pty-fixture-password"))
+	if err != nil || len(stored.SavedEmails) != 2 || stored.Version != 2 {
+		t.Fatal("email collection did not persist")
+	}
+	field, err := stored.GetField("smoke-project", "smoke-service", "email")
+	if err != nil || field.Value != "work@example.com" {
+		t.Fatal("saved email selection did not persist")
+	}
 	fmt.Fprintln(os.Stdout, "PTY_DONE")
 }
 

@@ -52,7 +52,7 @@ func (a *App) runTUI(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	label, err := tui.RunEditable(projectsOf(loaded), start, copier, a.tuiCommit(loaded, path, password), file, a.outWriter(), a.activeLabel())
+	label, err := tui.RunEditable(snapshotOf(loaded), start, copier, a.tuiCommit(loaded, path, password), file, a.outWriter(), a.activeLabel())
 	if err != nil {
 		return err
 	}
@@ -108,4 +108,16 @@ func servicesOf(v *vault.Vault, project string) []tui.Service {
 		out = append(out, tui.Service{Name: name, Fields: fields})
 	}
 	return out
+}
+
+func snapshotOf(v *vault.Vault) tui.Snapshot {
+	snapshot := tui.Snapshot{Projects: projectsOf(v)}
+	if v == nil {
+		return snapshot
+	}
+	for id, address := range v.SavedEmails {
+		snapshot.Emails = append(snapshot.Emails, tui.SavedEmail{ID: id, Address: address})
+	}
+	sort.Slice(snapshot.Emails, func(i, j int) bool { return snapshot.Emails[i].Address < snapshot.Emails[j].Address })
+	return snapshot
 }

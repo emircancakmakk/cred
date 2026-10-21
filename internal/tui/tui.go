@@ -77,16 +77,17 @@ var (
 )
 
 func Run(projects []Project, start string, copier Copier, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
-	return run(projects, start, copier, nil, in, out, vaultLabel...)
+	return run(Snapshot{Projects: projects}, start, copier, nil, in, out, vaultLabel...)
 }
 
 // RunEditable opens the browser with persistent CRUD support.
-func RunEditable(projects []Project, start string, copier Copier, commit Commit, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
-	return run(projects, start, copier, commit, in, out, vaultLabel...)
+func RunEditable(snapshot Snapshot, start string, copier Copier, commit Commit, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
+	return run(snapshot, start, copier, commit, in, out, vaultLabel...)
 }
 
-func run(projects []Project, start string, copier Copier, commit Commit, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
-	m, err := newModel(projects, start, copier)
+func run(snapshot Snapshot, start string, copier Copier, commit Commit, in io.Reader, out io.Writer, vaultLabel ...string) (string, error) {
+	m, err := newModel(snapshot.Projects, start, copier)
+	m.emails = snapshot.Emails
 	if err != nil {
 		return "", err
 	}
@@ -113,6 +114,8 @@ func run(projects []Project, start string, copier Copier, commit Commit, in io.R
 }
 
 type model struct {
+	emails       []SavedEmail
+	manager      *emailManager
 	commit       Commit
 	editor       *editor
 	deleting     *deletion
@@ -199,8 +202,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, keyStop) {
 			return m.fit(), tea.Quit
 		}
-		if m.editor != nil || m.deleting != nil {
-			return m.updateDialog(msg)
+		if m.editor != nil || m.deleting != nil || m.manager != nil {
+			return m.updateOverlay(msg)
 		}
 		if m.active().SettingFilter() {
 			m, cmd = m.forward(msg)
@@ -210,8 +213,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd = m.onKey(msg)
 		m = next.(model)
 	default:
-		if m.editor != nil || m.deleting != nil {
-			return m.updateDialog(msg)
+		if m.editor != nil || m.deleting != nil || m.manager != nil {
+			return m.updateOverlay(msg)
 		}
 		m, cmd = m.forward(msg)
 	}
@@ -220,6 +223,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) onKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
+	case msg.String() == "m":
+		if m.commit != nil {
+			m.manager = newEmailManager(m.emails)
+			m.clearReveal()
+			m.status = ""
+		}
+		return m, nil
 	case msg.String() == "n":
 		return m.startEditor(false)
 	case msg.String() == "e":
@@ -424,6 +434,9 @@ func (m model) paneHeight(lst list.Model) int {
 }
 
 func (m model) View() string {
+	if m.manager != nil {
+		return m.emailManagerView()
+	}
 	if m.editor != nil || m.deleting != nil {
 		return m.dialogView()
 	}
@@ -497,7 +510,7 @@ func (m model) browserHelp() []string {
 		help = append(help, "s show")
 	}
 	if m.commit != nil {
-		help = append(help, "n new")
+		help = append(help, "n new", "m emails")
 		if m.active().SelectedItem() != nil {
 			help = append(help, "e edit", "d delete")
 		}

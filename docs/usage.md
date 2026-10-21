@@ -100,6 +100,81 @@ field name already exists, nothing from that run is saved. The message names
 A new project, service, or field name that differs from an existing one only
 by case is rejected.
 
+## Saved email addresses
+
+In the TUI browser, press **m** from any project, service or field list to open
+**Saved emails**. Each vault has its own encrypted collection, including local
+vault files selected with `CRED_VAULT`. Switching vaults switches collections.
+Addresses have no labels in this version. The collection can stay empty;
+existing fields and manual input continue to work.
+
+Press **n** to enter or paste a batch, for example:
+
+```text
+personal@example.com
+work@example.com; other@example.com
+```
+
+Use one address per line, or separate addresses with commas or semicolons.
+Batch input supports up to 9,999 lines; a larger paste is rejected and the
+previous draft is retained. Blank entries and surrounding whitespace are ignored. Use plain addresses:
+display names such as `Personal <me@example.com>`, quoted addresses, comments
+and embedded whitespace are rejected. Domains are stored in lowercase; the
+local part retains its spelling. Duplicate checks ignore case across the whole
+address, both within the batch and against saved addresses.
+
+Enter inserts a newline. Tab / Shift+Tab moves between the text area, **Review**
+and **Cancel**. Review lists addresses to add, duplicates to skip and invalid
+entries. Invalid entries block Save for the whole batch. **Back** preserves the
+input for correction; **Save** writes all new addresses together. A batch with
+no new addresses makes no changes. Esc or Cancel closes the batch without
+saving. Save errors retain the draft for correction or cancellation.
+
+In the management list, use `/` to search, **e** to edit an address and **d** to
+remove one. Deletion requires explicit confirmation and defaults to Cancel.
+Esc returns to the previous browser location. Addresses are visible in the
+management list and picker, inside the alternate screen.
+
+When creating or editing a field named `email` (case insensitive), choose
+**Choose saved email** or press **Ctrl+E**. Use `/` to search and Enter to choose.
+While entering a search, Enter applies the filter and Esc cancels the filter;
+afterwards Esc closes the picker, preserving the field draft. An empty picker
+explains how to return to manual entry. Selection fills the Value input and
+keeps the Secret setting. Review, change the value if needed, then Save the
+field. You can always type a value manually; manual field values retain their
+existing validation behavior. `cred add` and `cred set` continue to use manual
+entry in this version.
+
+Selection **copies a value**, with no link to the collection. Editing or removing
+a saved address never updates existing credential fields. No existing email
+fields are automatically added to the collection.
+
+### Storage, sharing and upgrades
+
+The collection is stored in `vault.age` under the same encryption and password
+as credentials, with the same backup and local/Git persistence behavior. The
+first successful collection save upgrades the encrypted vault's plaintext
+format from v1 to v2. Opening a vault, cancelling a form, or saving an empty or
+duplicate-only batch does not upgrade it. Removing the last saved address keeps
+v2. Existing v1 vaults remain readable and writable by the new client.
+
+**Update every shared-vault client before saving the first collection.** Older
+clients reject v2 vaults as an unsupported version. The upgrade changes neither
+the encryption nor the master password. The `cred import` plaintext input
+format remains v1 and imports only credential fields; it preserves the target
+vault's saved addresses.
+
+Git vault collections are shared with everyone who can unlock that vault.
+Different saved records merge independently, alongside credential edits.
+Conflicting edits to the same record, or editing versus deleting it, offer the
+usual Team / Mine / Cancel choices. Conflict labels show an opaque record ID
+rather than an address. Concurrent records that converge on the same address
+are deduplicated deterministically, keeping the lexicographically smallest
+record ID and its spelling. Failed or cancelled publication retains encrypted
+recovery data; use `cred vault retry` or `cred vault discard` as described in
+[recovery](recovery.md). Successful saves refresh the TUI from the published
+snapshot, including concurrent team changes.
+
 ## Import fields
 
 ```sh

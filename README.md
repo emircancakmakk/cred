@@ -53,6 +53,13 @@ fill a hidden 24-character password with uppercase and lowercase letters,
 digits and symbols. Ctrl+R shows/hides the focused value. Choose Save to persist
 it; Esc cancels the draft.
 
+Save reusable email addresses with `m` in the browser. Press `n` to paste a
+batch, review it, then Save. In an `email` field form, choose **Choose saved
+email** or press Ctrl+E; selection copies the address into the editable draft.
+Addresses belong to the encrypted vault and are shared in Git vaults.
+See [saved email setup and reuse](docs/usage.md#saved-email-addresses), including
+format upgrade notes for shared vaults.
+
 Clipboard copying currently uses macOS `pbcopy` / `pbpaste`. On Linux, retrieve a
 value with `cred my-project vercel password --show`.
 

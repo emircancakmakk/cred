@@ -91,8 +91,11 @@ func Save(path string, password []byte, v *Vault, opt Options) error {
 }
 
 func marshalVault(v *Vault) ([]byte, error) {
-	if v.Version != currentVersion {
+	if !validVersion(v.Version) {
 		return nil, ErrUnsupportedVersion
+	}
+	if err := validateSavedEmails(v); err != nil {
+		return nil, err
 	}
 	buf, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -109,7 +112,7 @@ func parsePlaintext(plain []byte) (*Vault, error) {
 	if err := json.Unmarshal(plain, &header); err != nil {
 		return nil, ErrCorruptVault
 	}
-	if header.Version != currentVersion {
+	if !validVersion(header.Version) {
 		return nil, ErrUnsupportedVersion
 	}
 
@@ -121,6 +124,9 @@ func parsePlaintext(plain []byte) (*Vault, error) {
 	}
 	if dec.More() {
 		return nil, ErrCorruptVault
+	}
+	if err := validateSavedEmails(&loaded); err != nil {
+		return nil, err
 	}
 	loaded.normalize()
 	return &loaded, nil
