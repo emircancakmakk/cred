@@ -49,9 +49,9 @@ to the input steps.
 | `cred init <name>`, `cred connect` | Same setup components, skipping details supplied as arguments. |
 | Unlock / password confirmation | Sensitive field, visibility label, Open/Continue and Cancel actions. |
 | Project / service / field browser | Single-list navigation in the shared frame, with context and filtering help. |
-| TUI create / edit | Labeled fields, Secret choice, Save and Cancel. |
+| TUI create / edit | New fields start with email / password / username / url / api_key / token / Custom field selection. Presets focus Value; Name remains editable. Labeled fields, Secret choice, Save and Cancel. |
 | TUI delete / `cred rm` | Destructive confirmation with affected-record information and Cancel selected. |
-| `cred add`, `cred set` | Shared input and visibility selection. Empty field values remain valid. |
+| `cred add`, `cred set` | Add offers the shared field presets, Custom field and Finish. Shared input and visibility selection. Empty field values remain valid. |
 | Git conflicts | Explicit Cancel / Team / Mine choice. |
 | Recovery / discard | Shared password and destructive confirmation components. |
 | `ls`, `status`, profile list, help | Normal-screen output with shared typography and semantic colors on a terminal. |

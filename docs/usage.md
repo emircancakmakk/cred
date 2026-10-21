@@ -86,8 +86,11 @@ cred add my-project vercel
 cred add my-project
 ```
 
-The service name is prompted when it is omitted. Each field asks for a name,
-a masked value, and a Visible/Secret choice. An empty field name ends the list.
+The service name is prompted when it is omitted. Choose `email`, `password`,
+`username`, `url`, `api_key`, `token`, or **Custom field** using arrows or Tab,
+then Enter. Custom field lets you enter any nonblank name. Next enter a masked value and choose Visible
+or Secret. Choose **Finish** to save the list; Esc cancels without saving.
+Text-only prompt adapters retain free-text names and finish with an empty name.
 The visibility choice starts on Visible for a new field. An empty value is allowed.
 
 The file is written once, after every field in that run is accepted. If a

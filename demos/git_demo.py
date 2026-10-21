@@ -112,14 +112,14 @@ def setup():
     s = unlock(['--vault', 'seed', 'add', 'my-project', 'vercel'])
     for name, value, secret in [('email', 'original@example.invalid', 'n'),
                                  ('password', 'original-demo-token', 'y')]:
-        s.expect('Field name')
-        s.form(name)
+        s.expect('Choose field name')
+        s.send('j' if name == 'password' else '')
         s.expect('Field value')
         s.form(value)
         s.expect('Field visibility')
         s.send('j' if secret == 'y' else '')
-    s.expect('Field name')
-    s.form('')
+    s.expect('Choose field name')
+    s.send('jjjjjjj')
     s.finish()
     for client, extra in [('alice', ['--from', 'seed']), ('bob', [])]:
         s = unlock(['connect', client, str(REPO), *extra])

@@ -52,6 +52,15 @@ try:
     pos=send(password+b'\r\r');wait(b'Projects',pos)
     pos=send(b'n');wait(b'New project',pos)
     pos=send(b'smoke-project\r\r');wait(b'created smoke-project',pos)
+    pos=send(b'\r');wait(b'No services',pos)
+    pos=send(b'n');wait(b'New service',pos)
+    pos=send(b'smoke-service\r\r');wait(b'created smoke-service',pos)
+    pos=send(b'\r');wait(b'No fields',pos)
+    pos=send(b'n');wait(b'Choose field name',pos)
+    # Choose password and start typing directly into the focused Value field.
+    pos=send(b'\x1b[B\r');wait(b'New field',pos)
+    pos=send(b'pty-field-secret\r\r\r');wait(b'created password',pos)
+    assert b'pty-field-secret' not in output
     pos=send(b'q');wait(b'PTY_DONE',pos)
     proc.wait(timeout=5)
     assert proc.returncode==0

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/emircancakmakk/cred/internal/terminalui"
 	"golang.org/x/term"
@@ -39,6 +40,29 @@ func askLine(p Prompter, prompt, label string, required bool) (string, error) {
 	}
 	return p.ReadLine(prompt)
 }
+func askFieldName(p Prompter) (string, error) {
+	if rich, ok := p.(interfacePrompter); ok {
+		name, err := rich.Select(terminalui.FieldNameSelection("Credentials", true))
+		if err != nil || name != terminalui.CustomFieldChoice {
+			return name, err
+		}
+		values, err := rich.Form(terminalui.FormSpec{
+			Context: "Credentials", Title: "Custom field", Fields: []terminalui.Field{{Label: "Field name", Required: true}},
+			Validate: func(values []string) error {
+				if strings.TrimSpace(values[0]) == "" {
+					return errors.New("Field name is required.")
+				}
+				return nil
+			},
+		})
+		if err != nil {
+			return "", err
+		}
+		return values[0], nil
+	}
+	return p.ReadLine(promptField)
+}
+
 func askValue(p Prompter) ([]byte, error) {
 	if rich, ok := p.(interfacePrompter); ok {
 		v, e := rich.Form(terminalui.FormSpec{Context: "Credentials", Title: "Field value", Fields: []terminalui.Field{{Label: "Value", Sensitive: true}}})

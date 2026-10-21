@@ -28,6 +28,12 @@ func TestCRUDShortcutsAtEveryLevel(t *testing.T) {
 		}
 		kind := []Kind{ProjectKind, ServiceKind, FieldKind}[level]
 		m = update(t, m, "n")
+		if kind == FieldKind {
+			for range 6 {
+				m, _ = dialogKey(m, tea.KeyDown)
+			}
+			m, _ = dialogKey(m, tea.KeyEnter)
+		}
 		if m.editor == nil || m.editor.change.Kind != kind || !m.editor.secret {
 			t.Fatalf("new %s form missing", kind)
 		}
@@ -272,5 +278,87 @@ func TestEditableFilterUsesSelectedTarget(t *testing.T) {
 	m = update(t, m, "d")
 	if m.deleting == nil || m.deleting.change.Name != "vercel" {
 		t.Fatal("delete targeted wrong filtered service")
+	}
+}
+
+func TestNewFieldPicker(t *testing.T) {
+	for i, name := range []string{"email", "password", "username", "url", "api_key", "token", ""} {
+		m := editable(openVercel(t))
+		m = update(t, m, "n")
+		if m.editor.picker == nil {
+			t.Fatal("new field picker missing")
+		}
+		for range i {
+			m, _ = dialogKey(m, tea.KeyTab)
+		}
+		m, _ = dialogKey(m, tea.KeyEnter)
+		e := m.editor
+		if e.picker != nil || e.name.Value() != name || !e.secret {
+			t.Fatal("incorrect preset")
+		}
+		if name == "" {
+			if e.focus != 0 {
+				t.Fatal("custom name not focused")
+			}
+			e.name.SetValue("   ")
+			for range 4 {
+				m, _ = dialogKey(m, tea.KeyEnter)
+			}
+			if m.saving || !strings.Contains(m.View(), "Name is required") {
+				t.Fatal("blank name saved")
+			}
+		} else if e.focus != 1 || !e.value.Focused() {
+			t.Fatal("preset must focus value")
+		}
+		// The chosen name remains editable and is used by the save request.
+		savedName := "custom-key"
+		if i >= 3 && name != "" {
+			savedName = name
+		}
+		e.name.SetValue(savedName)
+		e.value.SetValue("picker-secret")
+		if strings.Contains(m.View(), "picker-secret") {
+			t.Fatal("new secret leaked")
+		}
+		e.setFocus(e.saveFocus())
+		var received Change
+		m.commit = func(c Change) ([]Project, error) {
+			received = c
+			return nil, errors.New("duplicate field")
+		}
+		p := tea.NewProgram(exitAfterSave{m}, tea.WithInput(strings.NewReader("")), tea.WithOutput(io.Discard), tea.WithoutRenderer())
+		done := make(chan error, 1)
+		go func() { _, err := p.Run(); done <- err }()
+		go p.Send(keyMsg("enter"))
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatal(err)
+			}
+			if received.NewName != savedName || received.Value != "picker-secret" || !received.Secret {
+				t.Fatalf("wrong field sent to persistence: %#v", received)
+			}
+			if m.editor.name.Value() != savedName || !strings.Contains(m.View(), "duplicate field") {
+				t.Fatal("save failure lost chosen name")
+			}
+		case <-time.After(5 * time.Second):
+			p.Kill()
+			t.Fatal("preset save did not complete")
+		}
+	}
+}
+
+func TestFieldPickerCancellationAndBounds(t *testing.T) {
+	for _, size := range [][2]int{{80, 24}, {40, 20}, {120, 30}} {
+		m := editable(openVercel(t)).resize(size[0], size[1])
+		m = update(t, m, "n")
+		assertDialogBounds(t, m.View(), size)
+		if !strings.Contains(m.View(), "Custom field") {
+			t.Fatal("custom option missing")
+		}
+		m = update(t, m, "esc")
+		if m.editor != nil || m.mode != screenFields || m.saving {
+			t.Fatal("cancel changed browser")
+		}
 	}
 }
