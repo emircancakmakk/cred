@@ -19,6 +19,7 @@ const (
 	ProjectKind Kind   = "project"
 	ServiceKind Kind   = "service"
 	FieldKind   Kind   = "field"
+	EmailKind   Kind   = "email"
 	Create      Action = "create"
 	Edit        Action = "edit"
 	Delete      Action = "delete"
@@ -33,20 +34,28 @@ type Change struct {
 	Secret                          bool
 }
 
+type SavedEmail struct{ ID, Address string }
+type Snapshot struct {
+	Projects []Project
+	Emails   []SavedEmail
+}
+
 // Commit returns the persisted snapshot, including any merged remote changes.
-type Commit func(Change) ([]Project, error)
+type Commit func(Change) (Snapshot, error)
 
 type editor struct {
-	change       Change
-	picker       *terminalui.Selection
-	name, value  textinput.Model
-	initialValue string
-	focus        int
-	secret       bool
-	err          string
-	nameErr      string
-	generateErr  string
-	generate     func() (string, error)
+	change        Change
+	picker        *terminalui.Selection
+	name, value   textinput.Model
+	initialValue  string
+	valueReplaced bool
+	focus         int
+	secret        bool
+	emailPicker   *emailPicker
+	err           string
+	nameErr       string
+	generateErr   string
+	generate      func() (string, error)
 }
 
 type deletion struct {
@@ -57,7 +66,7 @@ type deletion struct {
 }
 
 type saved struct {
-	projects []Project
+	snapshot Snapshot
 	change   Change
 	err      error
 }
@@ -67,12 +76,12 @@ type saved struct {
 type saveCommand struct {
 	commit   Commit
 	change   Change
-	projects []Project
+	snapshot Snapshot
 }
 
 func (c *saveCommand) Run() error {
 	var err error
-	c.projects, err = c.commit(c.change)
+	c.snapshot, err = c.commit(c.change)
 	return err
 }
 func (*saveCommand) SetStdin(io.Reader)  {}
@@ -188,6 +197,9 @@ func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 	if m.saving {
 		return m, nil
 	}
+	if m.editor != nil && m.editor.emailPicker != nil {
+		return m.updateEmailPicker(msg)
+	}
 	if e := m.editor; e != nil && e.picker != nil {
 		e.picker.Width, e.picker.Height = m.width, m.height
 		_, cmd := e.picker.Update(msg)
@@ -243,6 +255,9 @@ func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 			m.editor = nil
 			return m, nil
 		case "enter":
+			if e.isEmail() && e.focus == 4 {
+				return m.openEmailPicker()
+			}
 			if e.change.Kind == FieldKind && e.focus == 3 {
 				m.dialogScroll = 0
 				return m, e.generatePassword()
@@ -264,7 +279,7 @@ func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 			c.NewName, c.Value, c.Secret = e.name.Value(), e.value.Value(), e.secret
 			// The single-line widget sanitizes imported multiline/control content.
 			// A name/flag-only edit must preserve the original value byte for byte.
-			if c.Action == Edit && e.value.Value() == e.initialValue {
+			if c.Action == Edit && !e.valueReplaced && e.value.Value() == e.initialValue {
 				c.Value = e.change.Value
 			}
 			if strings.TrimSpace(c.NewName) == "" {
@@ -281,6 +296,11 @@ func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 			m.dialogScroll = 0
 			total := e.saveFocus() + 2
 			return m, e.setFocus((e.focus + delta + total) % total)
+		case "ctrl+e":
+			if e.isEmail() {
+				return m.openEmailPicker()
+			}
+			return m, nil
 		case "ctrl+g":
 			if e.change.Kind == FieldKind {
 				m.dialogScroll = 0
@@ -327,13 +347,16 @@ func (m model) saveChange(c Change) (model, tea.Cmd) {
 	m.dialogScroll = 0
 	job := &saveCommand{commit: m.commit, change: c}
 	return m, tea.Exec(job, func(err error) tea.Msg {
-		return saved{projects: job.projects, change: c, err: err}
+		return saved{snapshot: job.snapshot, change: c, err: err}
 	})
 }
 
 func (m model) finishSave(result saved) model {
 	m.saving = false
 	m.dialogScroll = 0
+	if result.change.Kind == EmailKind {
+		return m.finishEmailSave(result)
+	}
 	if result.err != nil {
 		if m.editor != nil {
 			m.editor.err = result.err.Error()
@@ -345,8 +368,9 @@ func (m model) finishSave(result saved) model {
 	}
 	c := result.change
 	// Restore the same list by names: merged snapshots may change sorted indices.
-	next, _ := newModel(result.projects, "", m.copier)
+	next, _ := newModel(result.snapshot.Projects, "", m.copier)
 	next.commit, next.vaultLabel = m.commit, m.vaultLabel
+	next.emails = result.snapshot.Emails
 	next.reveal.id = m.reveal.id
 	next = next.resize(m.width, m.height)
 	next.lastCopied = m.lastCopied
@@ -405,6 +429,9 @@ func (m model) finishSave(result saved) model {
 // The action buttons follow the available inputs in the keyboard focus order.
 func (e *editor) saveFocus() int {
 	if e.change.Kind == FieldKind {
+		if e.isEmail() {
+			return 5
+		}
 		return 4
 	}
 	return 1
@@ -418,6 +445,7 @@ func (e *editor) generatePassword() tea.Cmd {
 		return nil
 	}
 	e.value.SetValue(value)
+	e.valueReplaced = true
 	e.secret = true
 	e.value.EchoMode = textinput.EchoPassword
 	e.err = ""
@@ -438,4 +466,8 @@ func (e *editor) setFocus(focus int) tea.Cmd {
 		}
 	}
 	return nil
+}
+
+func (e *editor) isEmail() bool {
+	return e.change.Kind == FieldKind && strings.EqualFold(e.name.Value(), "email")
 }

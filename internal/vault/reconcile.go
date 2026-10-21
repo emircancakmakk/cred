@@ -1,6 +1,8 @@
 package vault
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // Resolve returns true to keep the local change, false to keep the remote change.
 // Values are deliberately excluded from conflict labels.
@@ -9,6 +11,12 @@ type Resolve func(path string) (bool, error)
 func Clone(v *Vault) *Vault {
 	out := New()
 	out.Version = v.Version
+	if v.SavedEmails != nil {
+		out.SavedEmails = make(map[string]string, len(v.SavedEmails))
+		for id, address := range v.SavedEmails {
+			out.SavedEmails[id] = address
+		}
+	}
 	for p, project := range v.Projects {
 		services := map[string]Service{}
 		for s, service := range project.Services {
@@ -36,7 +44,28 @@ func Reconcile(base, local, remote *Vault, resolve Resolve) (*Vault, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := &Vault{Version: currentVersion, Projects: projects}
+	emails, err := mergeMap(base.SavedEmails, local.SavedEmails, remote.SavedEmails, "saved emails", resolve, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Independently added or edited records can converge on the same address.
+	// Keep the smallest stable ID regardless of merge direction.
+	seen := make(map[string]bool)
+	for _, id := range sortedKeys(emails) {
+		key := emailKey(emails[id])
+		if seen[key] {
+			delete(emails, id)
+		} else {
+			seen[key] = true
+		}
+	}
+	if len(emails) == 0 {
+		emails = nil
+	}
+	out := &Vault{Version: max(base.Version, local.Version, remote.Version), Projects: projects, SavedEmails: emails}
+	if err := validateSavedEmails(out); err != nil {
+		return nil, err
+	}
 	// Reject case-only collisions introduced by independent additions.
 	for _, p := range sortedKeys(projects) {
 		if e, ok := caseConflict(mapKeys(projects), p); ok {

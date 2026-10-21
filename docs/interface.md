@@ -28,7 +28,7 @@ allow cancellation.
 
 | Surface | Behavior |
 | --- | --- |
-| Form | Tab / Shift+Tab moves through fields and buttons. Enter advances from a field and activates a focused button. In field editors, Enter from Secret goes directly to Save; Tab or Ctrl+G accesses password generation. |
+| Form | Tab / Shift+Tab moves through fields and buttons. Enter advances from a field and activates a focused button. In field editors, Enter from Secret goes directly to Save; Tab or Ctrl+G accesses password generation; email forms also offer saved-address selection with Ctrl+E. |
 | Sensitive field | Starts masked; Ctrl+R shows/hides the focused field. |
 | Selection | Arrows or Tab move; Enter chooses. |
 | Confirmation | Cancel is initially selected; explicitly choose the action to proceed. |
@@ -50,6 +50,8 @@ to the input steps.
 | Unlock / password confirmation | Sensitive field, visibility label, Open/Continue and Cancel actions. |
 | Project / service / field browser | Single-list navigation in the shared frame, with context and filtering help. |
 | TUI create / edit | New fields start with email / password / username / url / api_key / token / Custom field selection. Presets focus Value; Name remains editable. Labeled fields, Secret choice, Save and Cancel. |
+| Saved emails | `m` opens management; `/` searches, `n` opens multiline batch input → Review → Save, `e` edits and `d` confirms deletion. Enter inserts a newline in batch input; Tab reaches actions. |
+| Email field picker | Choose saved email / Ctrl+E opens a searchable list. Selection fills Value; Esc returns without changing the draft. |
 | TUI delete / `cred rm` | Destructive confirmation with affected-record information and Cancel selected. |
 | `cred add`, `cred set` | Add offers the shared field presets, Custom field and Finish. Shared input and visibility selection. Empty field values remain valid. |
 | Git conflicts | Explicit Cancel / Team / Mine choice. |
@@ -68,7 +70,9 @@ plain text, without panels or ANSI styling. `NO_COLOR` and `TERM=dumb` disable
 styling of normal command output. `--show` always writes only the requested value
 and its trailing newline, including on a terminal.
 
-Command names, flags, vault formats and Git recovery semantics are unchanged.
+Command names, flags and Git recovery semantics are unchanged. Saving the first
+saved-email collection upgrades the encrypted plaintext format to v2; see
+[storage and upgrades](usage.md#storage-sharing-and-upgrades).
 Injected `Prompter` implementations retain their existing method contract;
 production prompts use typed form and selection requests through an optional
 adapter instead of interpreting question text.

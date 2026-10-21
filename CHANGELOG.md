@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Vault-scoped saved email management in the TUI (`m`), with multiline bulk input, validation, duplicate review, editing and confirmed deletion.
+- Searchable saved-address selection in new and edit email field forms via Ctrl+E or Choose saved email. Selection copies an editable value.
+- Record-level Git merging and encrypted recovery for the email collection.
+
+### Upgrade notes
+
+- Existing v1 vaults remain usable. The first successful collection save upgrades that vault to v2; upgrade every shared-vault client first. Older clients reject v2.
+- Removing or editing saved addresses never changes existing credentials. `cred add`, `cred set` and the v1 credential import format retain their existing scope.
+
 ## v0.5.0 — 2026-10-21
 
 ### Added

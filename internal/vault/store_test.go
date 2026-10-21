@@ -119,7 +119,7 @@ func TestLoadVersionBeforeUnknownFields(t *testing.T) {
 	}{
 		{
 			name:    "unsupported version with unknown field",
-			body:    `{"version":2,"extra":"DISTINCTIVE-SECRET-VALUE","projects":{}}`,
+			body:    `{"version":3,"extra":"DISTINCTIVE-SECRET-VALUE","projects":{}}`,
 			want:    ErrUnsupportedVersion,
 			notWant: ErrCorruptVault,
 		},

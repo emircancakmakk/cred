@@ -11,43 +11,53 @@ import (
 // Work on a clone so a validation or persistence failure cannot alter the
 // browser's last successful snapshot. The password stays inside the cmd layer.
 func (a *App) tuiCommit(loaded *vault.Vault, path string, password []byte) tui.Commit {
-	return func(change tui.Change) ([]tui.Project, error) {
+	return func(change tui.Change) (tui.Snapshot, error) {
 		if a.gitSession != nil {
 			pending, err := hasRecovery(a.profile)
 			if err != nil {
-				return nil, err
+				return tui.Snapshot{}, err
 			}
 			if pending {
-				return nil, fmt.Errorf("unshared change retained; run cred vault retry %s or cred vault discard %s before saving again", a.activeName(), a.activeName())
+				return tui.Snapshot{}, fmt.Errorf("unshared change retained; run cred vault retry %s or cred vault discard %s before saving again", a.activeName(), a.activeName())
 			}
 		}
 		candidate := vault.Clone(loaded)
 		if err := applyTUIChange(candidate, change); err != nil {
-			return nil, err
+			return tui.Snapshot{}, err
 		}
 		if reflect.DeepEqual(candidate, loaded) {
-			return projectsOf(loaded), nil
+			return snapshotOf(loaded), nil
 		}
 		if err := a.save(path, password, candidate); err != nil {
-			return nil, err
+			return tui.Snapshot{}, err
 		}
 		if a.gitSession != nil {
 			// A successful concurrent merge can include team edits or reject a local
 			// choice. Display the actual published vault and use it as the next base.
 			current, err := vault.Load(path, password)
 			if err != nil {
-				return nil, fmt.Errorf("saved, but could not refresh vault: %w", err)
+				return tui.Snapshot{}, fmt.Errorf("saved, but could not refresh vault: %w", err)
 			}
 			candidate = current
 			a.base = vault.Clone(current)
 		}
 		loaded = candidate
-		return projectsOf(loaded), nil
+		return snapshotOf(loaded), nil
 	}
 }
 
 func applyTUIChange(v *vault.Vault, c tui.Change) error {
 	switch c.Kind {
+	case tui.EmailKind:
+		switch c.Action {
+		case tui.Create:
+			_, err := v.AddSavedEmails(c.Value)
+			return err
+		case tui.Edit:
+			return v.EditSavedEmail(c.Name, c.Value)
+		case tui.Delete:
+			return v.DeleteSavedEmail(c.Name)
+		}
 	case tui.ProjectKind:
 		switch c.Action {
 		case tui.Create:

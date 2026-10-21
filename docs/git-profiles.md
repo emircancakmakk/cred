@@ -69,6 +69,14 @@ cancel; the default is cancel and values are not displayed. Case-only name
 collisions stop the merge. At most three publication attempts are made.
 Local processes are locked for the entire read/modify/write session.
 
+Saved email addresses also belong to the encrypted vault and are shared with the
+team. Different records merge automatically; conflicting edits or edit/delete
+changes to one record use Team / Mine / Cancel with an opaque record ID in place
+of the address. Duplicate concurrent additions converge to one address. Updating
+or deleting a saved address never changes credential fields that copied it.
+Upgrade all clients before the first collection save, which upgrades the vault
+to v2. Older clients reject v2. See [email storage and upgrades](usage.md#storage-sharing-and-upgrades).
+
 If publication fails or a merge is cancelled, cred retains encrypted change and
 base files outside the repository and reports an error instead of success.
 Further Git operations on that profile stop until you retry or discard:
