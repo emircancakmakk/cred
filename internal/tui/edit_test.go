@@ -117,9 +117,9 @@ func TestSaveFailurePreservesInputsAndSuccessRestoresContext(t *testing.T) {
 	m = update(t, m, "e")
 	m.editor.name.SetValue("renamed")
 	m.editor.value.SetValue("replacement")
-	m, _ = dialogKey(m, tea.KeyEnter)
-	m, _ = dialogKey(m, tea.KeyEnter)
-	m, _ = dialogKey(m, tea.KeyEnter)
+	for range m.editor.saveFocus() {
+		m, _ = dialogKey(m, tea.KeyTab)
+	}
 	m, cmd := dialogKey(m, tea.KeyEnter)
 	if cmd == nil || !m.saving {
 		t.Fatal("save not started")
@@ -242,9 +242,10 @@ func TestEditingNamePreservesImportedValue(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { _, err := p.Run(); done <- err }()
 	go func() {
-		for range 4 {
-			p.Send(keyMsg("enter"))
+		for range m.editor.saveFocus() {
+			p.Send(tea.KeyMsg{Type: tea.KeyTab})
 		}
+		p.Send(keyMsg("enter"))
 	}()
 	select {
 	case err := <-done:

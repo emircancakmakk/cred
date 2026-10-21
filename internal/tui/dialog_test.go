@@ -21,7 +21,12 @@ func TestEditorActionsAndFocus(t *testing.T) {
 			m = update(t, m, "e")
 			saveFocus := m.editor.saveFocus()
 			for focus := 1; focus <= saveFocus; focus++ {
-				m = update(t, m, "enter")
+				if m.editor.change.Kind == FieldKind && m.editor.focus == 3 {
+					// Tab past Generate without replacing the existing value.
+					m, _ = dialogKey(m, tea.KeyTab)
+				} else {
+					m = update(t, m, "enter")
+				}
 				if m.saving || m.editor.focus != focus {
 					t.Fatalf("enter saved before Save, focus=%d", focus)
 				}
@@ -63,7 +68,7 @@ func TestDialogFitsTerminalAndKeepsFocusVisible(t *testing.T) {
 			m.vaultLabel = strings.Repeat("Long vault 界 ", 12)
 			m = update(t, m, "e")
 			m.editor.name.SetValue(strings.Repeat("密钥🙂", 60))
-			for _, label := range []string{"> Name", "> Value", "> [ ] Secret", "> [ Save ]", "> [ Cancel ]"} {
+			for _, label := range []string{"> Name", "> Value", "> [ ] Secret", "> [ Generate", "> [ Save ]", "> [ Cancel ]"} {
 				view := ansi.Strip(m.View())
 				assertDialogBounds(t, view, size)
 				if !strings.Contains(view, label) {

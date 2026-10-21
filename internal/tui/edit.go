@@ -5,6 +5,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/emircancakmakk/cred/internal/password"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/emircancakmakk/cred/internal/terminalui"
@@ -43,6 +45,8 @@ type editor struct {
 	secret       bool
 	err          string
 	nameErr      string
+	generateErr  string
+	generate     func() (string, error)
 }
 
 type deletion struct {
@@ -124,7 +128,7 @@ func (m model) startEditor(edit bool) (model, tea.Cmd) {
 	value := textinput.New()
 	value.Prompt = ""
 	value.CharLimit = 0
-	e := &editor{change: c, name: name, value: value, secret: true}
+	e := &editor{change: c, name: name, value: value, secret: true, generate: password.Generate}
 	if edit {
 		e.change.Action = Edit
 		e.name.SetValue(c.Name)
@@ -239,6 +243,10 @@ func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 			m.editor = nil
 			return m, nil
 		case "enter":
+			if e.change.Kind == FieldKind && e.focus == 3 {
+				m.dialogScroll = 0
+				return m, e.generatePassword()
+			}
 			if e.focus < e.saveFocus() {
 				m.dialogScroll = 0
 				return m, e.setFocus(e.focus + 1)
@@ -268,6 +276,12 @@ func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 			m.dialogScroll = 0
 			total := e.saveFocus() + 2
 			return m, e.setFocus((e.focus + delta + total) % total)
+		case "ctrl+g":
+			if e.change.Kind == FieldKind {
+				m.dialogScroll = 0
+				return m, e.generatePassword()
+			}
+			return m, nil
 		case "ctrl+r":
 			if e.change.Kind == FieldKind && e.focus == 1 && e.secret {
 				if e.value.EchoMode == textinput.EchoPassword {
@@ -386,9 +400,24 @@ func (m model) finishSave(result saved) model {
 // The action buttons follow the available inputs in the keyboard focus order.
 func (e *editor) saveFocus() int {
 	if e.change.Kind == FieldKind {
-		return 3
+		return 4
 	}
 	return 1
+}
+
+func (e *editor) generatePassword() tea.Cmd {
+	value, err := e.generate()
+	if err != nil {
+		// Do not include backend errors, which may contain sensitive data.
+		e.generateErr = "Could not generate password. Try again."
+		return nil
+	}
+	e.value.SetValue(value)
+	e.secret = true
+	e.value.EchoMode = textinput.EchoPassword
+	e.err = ""
+	e.generateErr = ""
+	return e.setFocus(1)
 }
 
 func (e *editor) setFocus(focus int) tea.Cmd {
