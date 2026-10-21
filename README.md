@@ -48,6 +48,11 @@ cred
 2. Run `cred` and unlock. Press `n` to create a project, Enter to open it, then `n` to create a service. Open the service and press `n` to add a field; Tab moves between inputs and the Save/Cancel buttons. Enter advances through inputs; press Enter on Save to save.
 3. Browse project → service → field. Enter on a field copies its value; `e` edits, `d` asks to delete, and `q` quits.
 
+In new and edit field forms, choose **Generate password** or press Ctrl+G to
+fill a hidden 24-character password with uppercase and lowercase letters,
+digits and symbols. Ctrl+R shows/hides the focused value. Choose Save to persist
+it; Esc cancels the draft.
+
 Clipboard copying currently uses macOS `pbcopy` / `pbpaste`. On Linux, retrieve a
 value with `cred my-project vercel password --show`.
 

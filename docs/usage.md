@@ -216,10 +216,15 @@ project, and fields inside a service. Empty projects and services can be created
   inputs. Editing pre-fills the existing values; secret values are masked, and
   new fields default to secret.
 - Forms open in a framed panel. Tab / Shift+Tab moves through the inputs,
-  Secret checkbox, Save and Cancel buttons. Space toggles the checkbox when
+  Secret checkbox, Generate password (fields only), Save and Cancel buttons. Space toggles the checkbox when
   focused. Enter advances to the next item until a button is focused; Enter on
   Save saves, and Enter on Cancel closes the form. Esc cancels immediately
   without applying changes.
+- In field forms, Ctrl+G or Enter on Generate password replaces the draft value
+  with a 24-character password generated using `crypto/rand`, containing uppercase
+  and lowercase ASCII letters, digits and symbols (`!@#$%^&*()-_=+`). It enables
+  Secret and focuses the masked value. Ctrl+R shows/hides the focused secret value.
+  Generate again to replace the draft; only Save writes it to the vault.
 - On small terminals, the panel scrolls to keep the focused input or button
   visible. PgUp / PgDown scrolls the panel body to inspect longer messages.
 - Renaming preserves all descendants. Invalid or duplicate names are rejected

@@ -40,6 +40,7 @@ func (m model) renderDialog() (string, int) {
 			add(lipgloss.NewStyle().Foreground(danger).Render(e.nameErr))
 		}
 		if e.change.Kind == FieldKind {
+			help = append(help, "ctrl+g generate")
 			add("")
 			if e.focus == 1 {
 				anchor = len(body)
@@ -66,6 +67,15 @@ func (m model) renderDialog() (string, int) {
 			add(dialogChoice(check, e.focus == 2, false, m.saving))
 			if e.focus == 2 {
 				help[1] = "space toggle"
+			}
+			add("")
+			if e.focus == 3 {
+				anchor = len(body)
+				help[1] = "enter generate"
+			}
+			add(dialogChoice("[ Generate password ]", e.focus == 3, false, m.saving))
+			if e.generateErr != "" {
+				add(lipgloss.NewStyle().Foreground(danger).Render(e.generateErr))
 			}
 		}
 		add("")
