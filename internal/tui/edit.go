@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/emircancakmakk/cred/internal/terminalui"
 )
 
 type Kind string
@@ -35,6 +36,7 @@ type Commit func(Change) ([]Project, error)
 
 type editor struct {
 	change       Change
+	picker       *terminalui.Selection
 	name, value  textinput.Model
 	initialValue string
 	focus        int
@@ -139,6 +141,11 @@ func (m model) startEditor(edit bool) (model, tea.Cmd) {
 	m.status = ""
 	m.dialogScroll = 0
 	m.editor = e
+	if !edit && c.Kind == FieldKind {
+		e.picker = terminalui.NewSelection(terminalui.FieldNameSelection(m.crumb(), false))
+		e.name.Blur()
+		return m, nil
+	}
 	return m, m.editor.name.Focus()
 }
 
@@ -176,6 +183,24 @@ func (m model) startDelete() model {
 func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 	if m.saving {
 		return m, nil
+	}
+	if e := m.editor; e != nil && e.picker != nil {
+		e.picker.Width, e.picker.Height = m.width, m.height
+		_, cmd := e.picker.Update(msg)
+		if e.picker.Cancelled {
+			m.editor = nil
+			return m, nil
+		}
+		if e.picker.Accepted {
+			name := e.picker.Spec.Options[e.picker.Index].Value
+			e.picker = nil
+			if name == terminalui.CustomFieldChoice {
+				return m, e.setFocus(0)
+			}
+			e.name.SetValue(name)
+			return m, e.setFocus(1)
+		}
+		return m, cmd
 	}
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch k.String() {

@@ -18,8 +18,9 @@ func (a *App) addCmd() *cobra.Command {
 		Long: `Add one or more fields to a project and service.
 
 The service name is prompted when it is omitted. Field values are read
-hidden and are never command arguments. An empty field name finishes the
-list. Names must be exact; a prefix is a different name.
+hidden and are never command arguments. Choose email, password, username,
+url, api_key, token or Custom field, then choose Finish to save the list.
+Text-only prompt adapters finish with an empty field name. Names must be exact; a prefix is a different name.
 
 The file is written once, after every field in this run is accepted.
 An existing field is not overwritten.`,
@@ -54,7 +55,7 @@ func (a *App) runAdd(_ *cobra.Command, args []string) error {
 
 	added := 0
 	for {
-		name, err := askLine(prompter, promptField, "Field name (empty to finish)", false)
+		name, err := askFieldName(prompter)
 		if err != nil {
 			return err
 		}

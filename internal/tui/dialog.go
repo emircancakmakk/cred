@@ -18,6 +18,10 @@ func (m model) dialogView() string {
 }
 
 func (m model) renderDialog() (string, int) {
+	if e := m.editor; e != nil && e.picker != nil {
+		e.picker.Width, e.picker.Height = m.width, m.height
+		return e.picker.View(), e.picker.Scroll
+	}
 	width := min(64, m.width)
 	if width < 20 || m.height < 9 {
 		return ansi.Truncate("Resize terminal", max(1, m.width), ""), 0

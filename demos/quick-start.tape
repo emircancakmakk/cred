@@ -65,9 +65,9 @@ Sleep 1500ms
 Enter
 Wait+Screen /No fields/
 Type "n"
-Wait+Screen /New field/
+Wait+Screen /Choose field name/
 Sleep 1s
-Type "password"
+Down
 Enter
 Type@55ms "example-demo-token"
 Sleep 1500ms
