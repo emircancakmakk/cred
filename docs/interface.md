@@ -28,7 +28,7 @@ allow cancellation.
 
 | Surface | Behavior |
 | --- | --- |
-| Form | Tab / Shift+Tab moves through fields and buttons. Enter advances from a field and activates a focused button. |
+| Form | Tab / Shift+Tab moves through fields and buttons. Enter advances from a field and activates a focused button. In field editors, Enter from Secret goes directly to Save; Tab or Ctrl+G accesses password generation. |
 | Sensitive field | Starts masked; Ctrl+R shows/hides the focused field. |
 | Selection | Arrows or Tab move; Enter chooses. |
 | Confirmation | Cancel is initially selected; explicitly choose the action to proceed. |

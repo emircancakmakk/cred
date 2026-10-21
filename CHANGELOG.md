@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.5.0 — 2026-10-21
+
+### Added
+
+- Shared email, password, username, url, api_key and token presets, plus custom field names, in CLI and TUI field creation.
+- Secure 24-character password generation in new and edit field forms through Ctrl+G or the Generate password button. Generated values are masked and marked Secret until explicitly saved.
+
+### Fixed
+
+- Enter advances from the Secret checkbox directly to Save without replacing manually entered values with a generated password.
+- Updated field editor tests to follow the preset selection step and verified the combined flow through a real terminal.
+
+### Upgrade notes
+
+- Vault encryption, stored data format and existing passwords remain compatible.
+- In `cred add`, choose Finish to save all added fields; Esc cancels without saving.
+- Use Tab to focus Generate password or Ctrl+G to generate. Enter follows the normal input-to-save path.
+
 ## v0.4.0 — 2026-10-21
 
 ### Added

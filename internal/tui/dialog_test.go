@@ -21,8 +21,8 @@ func TestEditorActionsAndFocus(t *testing.T) {
 			m = update(t, m, "e")
 			saveFocus := m.editor.saveFocus()
 			for focus := 1; focus <= saveFocus; focus++ {
-				if m.editor.change.Kind == FieldKind && m.editor.focus == 3 {
-					// Tab past Generate without replacing the existing value.
+				if m.editor.change.Kind == FieldKind && m.editor.focus >= 2 {
+					// Tab visits Generate; Enter from Secret skips it to Save.
 					m, _ = dialogKey(m, tea.KeyTab)
 				} else {
 					m = update(t, m, "enter")

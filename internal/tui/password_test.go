@@ -16,6 +16,9 @@ func TestGeneratePasswordFromEveryFieldFocus(t *testing.T) {
 		for focus := 0; focus < 6; focus++ {
 			m := editable(openVercel(t))
 			m = update(t, m, action)
+			if action == "n" {
+				m, _ = dialogKey(m, tea.KeyEnter)
+			}
 			m.editor.setFocus(focus)
 			m.editor.secret = false
 			m.editor.value.EchoMode = textinput.EchoNormal
@@ -75,6 +78,9 @@ func TestGeneratedPasswordReachesCommit(t *testing.T) {
 	for _, action := range []string{"n", "e"} {
 		m := editable(openVercel(t))
 		m = update(t, m, action)
+		if action == "n" {
+			m, _ = dialogKey(m, tea.KeyEnter)
+		}
 		m.editor.name.SetValue("password")
 		m, _ = dialogKey(m, tea.KeyCtrlG)
 		value := m.editor.value.Value()
@@ -96,6 +102,32 @@ func TestGeneratedPasswordReachesCommit(t *testing.T) {
 		case <-time.After(5 * time.Second):
 			p.Kill()
 			t.Fatal("save did not complete")
+		}
+	}
+}
+
+func TestEnterProgressionPreservesManualPassword(t *testing.T) {
+	for _, action := range []string{"n", "e"} {
+		m := editable(openVercel(t))
+		m = update(t, m, action)
+		if action == "n" {
+			m, _ = dialogKey(m, tea.KeyEnter)
+		}
+		m.editor.value.SetValue("manual-password-fixture")
+		m.editor.setFocus(1)
+		m.editor.generate = func() (string, error) {
+			t.Fatal("Enter progression must not generate a password")
+			return "", nil
+		}
+		for range 2 {
+			m, _ = dialogKey(m, tea.KeyEnter)
+		}
+		if m.editor.focus != m.editor.saveFocus() || m.editor.value.Value() != "manual-password-fixture" || m.saving {
+			t.Fatal("Enter must reach Save and preserve the manual value")
+		}
+		m, cmd := dialogKey(m, tea.KeyEnter)
+		if !m.saving || cmd == nil {
+			t.Fatal("Enter on Save must start persistence")
 		}
 	}
 }

@@ -249,6 +249,11 @@ func (m model) updateDialog(msg tea.Msg) (model, tea.Cmd) {
 			}
 			if e.focus < e.saveFocus() {
 				m.dialogScroll = 0
+				// Enter follows the input-to-save path. Generation is opt-in
+				// through Tab to its button or the Ctrl+G shortcut.
+				if e.change.Kind == FieldKind && e.focus == 2 {
+					return m, e.setFocus(e.saveFocus())
+				}
 				return m, e.setFocus(e.focus + 1)
 			}
 			if e.focus == e.saveFocus()+1 {

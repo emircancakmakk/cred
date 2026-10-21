@@ -228,6 +228,8 @@ project, and fields inside a service. Empty projects and services can be created
   and lowercase ASCII letters, digits and symbols (`!@#$%^&*()-_=+`). It enables
   Secret and focuses the masked value. Ctrl+R shows/hides the focused secret value.
   Generate again to replace the draft; only Save writes it to the vault.
+- Enter from the Secret checkbox advances directly to Save, preserving a manually
+  entered value. Use Tab to focus Generate password, or Ctrl+G to generate.
 - On small terminals, the panel scrolls to keep the focused input or button
   visible. PgUp / PgDown scrolls the panel body to inspect longer messages.
 - Renaming preserves all descendants. Invalid or duplicate names are rejected
